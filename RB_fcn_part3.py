@@ -12,7 +12,7 @@ import multiprocess as mp
 import matplotlib.gridspec as gridspec
 #%% Select_class_ReefCloud_pts
 
-def Select_class_ReefCloud_pts(RB_centroid_csv, RC_csv, label_file, polygon_file, label_poygon_seg, label_poygon_csv):
+def Select_class_ReefCloud_pts(RB_centroid_csv, RC_csv, label_file, polygon_file, label_polygon_seg, label_poygon_csv):
 
     #access and read files
     RB_centroid_csv = pd.read_csv(RB_centroid_csv)
@@ -35,7 +35,7 @@ def Select_class_ReefCloud_pts(RB_centroid_csv, RC_csv, label_file, polygon_file
     df_classNum = df_all_sub_04.merge(label[['label_set', 'Morphology','ID_number','Morpho_number']], how='left', left_on='pred_desc', right_on='label_set')
 
     #for Hexagrid drop morpho soft_coral, branching_non_ac, Acropora (except ACS and ACX)
-    Hexagrid_filter = df_classNum.loc[((df_classNum.SAM_centroid.str.contains('Hexa')) &
+    Hexagrid_filter = df_classNum.loc[((df_classNum.SAM_centroid.astype(str).str.contains('Hexa')) &
                                        ((df_classNum['Morphology'].isin(['Soft_Coral','Branching_non_acropora']))|
                                         (df_classNum['pred_desc'].isin(['ACO_MIL','ACO_TEN', 'ACO_OTH', 'ACD', 'AC_Bran_OTH', 'ACT']))))]
     df_classNum.drop(Hexagrid_filter.index, inplace = True) #, 'Foliose', 'Branching_non_acropora',
@@ -45,7 +45,14 @@ def Select_class_ReefCloud_pts(RB_centroid_csv, RC_csv, label_file, polygon_file
     df = df_classNum
     #create series with unique values per mask
 
-    most_occuring_morpho = df.groupby(['SAM_centroid'])[pred].agg(pd.Series.mode)
+    def get_mode(series):
+        mode = series.mode()
+        if len(mode) == 1:
+            return [mode.iloc[0]]
+        else:
+            return mode.tolist()
+
+    most_occuring_morpho = df.groupby(['SAM_centroid'])[pred].agg(get_mode)
 
 
     most_occuring_morpho_df = most_occuring_morpho.to_frame().reset_index()
@@ -54,6 +61,7 @@ def Select_class_ReefCloud_pts(RB_centroid_csv, RC_csv, label_file, polygon_file
                               how='inner',
                               on='SAM_centroid')
 
+    df_drop_morpho = df_drop_morpho.dropna(subset=['Morphology_x'])
     df_t = df_drop_morpho.loc[df_drop_morpho.apply(lambda row: row.Morphology_x in row.Morphology_y, axis=1)]
     df_t = df_t.drop(columns = 'Morphology_y')
     df_t = df_t.rename(columns ={'Morphology_x':'Morphology'})
@@ -79,7 +87,7 @@ def Select_class_ReefCloud_pts(RB_centroid_csv, RC_csv, label_file, polygon_file
     df_result['pred_score_mean'] = mean
     df_result['Weighted_score'] = fctn
     df_result["max_pred"] = max_pred
-    Weighted_class_result = df_result[df_result['Weighted_score'] == df_result.groupby(level=0)['Weighted_score'].transform(max)]
+    Weighted_class_result = df_result[df_result['Weighted_score'] == df_result.groupby(level=0)['Weighted_score'].transform('max')]
     Weighted_class_result=Weighted_class_result.reset_index(level=[pred])
 
     #merge unique value and weighted classes
@@ -91,7 +99,7 @@ def Select_class_ReefCloud_pts(RB_centroid_csv, RC_csv, label_file, polygon_file
     df_merged = df_merged.merge(RB_SHP, left_on='SAM_centroid', right_on = "segment_un")
     gdf = GeoDataFrame(df_merged, geometry='geometry')
 
-    gdf.to_file(label_poygon_seg)
+    gdf.to_file(label_polygon_seg)
     gdf.to_csv(label_poygon_csv)
 
     return gdf
@@ -99,12 +107,13 @@ def Select_class_ReefCloud_pts(RB_centroid_csv, RC_csv, label_file, polygon_file
 def format_percent_cover(label_polygon_seg, label_file):
     label = pd.read_csv(label_file)
     label['label_set'] = label['label_set'].replace({'AC _Bran_OTH': 'AC_Bran_OTH'})
-    RB_shp_df = geopandas.read_file(label_poygon_seg)
+    RB_shp_df = geopandas.read_file(label_polygon_seg) #RB_shp_df = geopandas.read_file(label_polygon_seg)
     RB_shp_df['pred_desc_']= RB_shp_df.pred_desc_.replace({'G_STY ': 'G_STY'})
     RB_shp_df_classes = RB_shp_df.groupby(['pred_desc_'])['area'].sum()
     RB_shp_df_classes_result = pd.DataFrame(columns=['SAM_10X4_Total_area', 'SAM_10X4_Percent_cover'])
     RB_shp_df_classes_result['SAM_10X4_Total_area']= RB_shp_df_classes
     RB_shp_df_classes_result['SAM_10X4_Percent_cover']= RB_shp_df_classes/(RB_shp_df_classes.sum())*100
+    RB_shp_df_classes_result.index.name = 'pred_desc_'
 
     RB_shp_df_classes_result_group = RB_shp_df_classes_result.copy()
     RB_shp_df_classes_result_group["class"] = RB_shp_df_classes_result_group.index
@@ -234,10 +243,10 @@ def stack_catplot(x, y, cat, stack, data, palette, out_fig, order):
 def rgb_to_hex(r, g, b):
     return ('{:02X}' * 3).format(r, g, b)
 
-def ColonyLevel_Segments(label_poygon_seg, ColonyLevelSegments_shp):
+def ColonyLevel_Segments(label_polygon_seg, ColonyLevelSegments_shp):
     #apply buffers based on morphology to merge
-    gdf = geopandas.read_file(label_poygon_seg)
-    gdf_NH = gdf.loc[~((gdf.SAM_centro.str.contains('Hexa')) & (~gdf['pred_desc_'].isin(['ACS', 'ACX', 'CB_OTH_C']))) #'G_POR'
+    gdf = geopandas.read_file(label_polygon_seg)
+    gdf_NH = gdf.loc[~((gdf.SAM_centro.astype(str).str.contains('Hexa')) & (~gdf['pred_desc_'].isin(['ACS', 'ACX', 'CB_OTH_C']))) #'G_POR'
                      | ((gdf['Morphology'].isin(['Acropora']) & (gdf['area'] <= 0.0006)))] #filterout Hexagrid
     gdf_buff = gdf_NH.loc[(gdf_NH['area'] <= 0.0025) | (~gdf_NH['Morphology'].isin(['Acropora', 'Branching_non_acropora', 'Soft_Coral']))]
     gdf_buff['geometry'] = gdf_buff.geometry.buffer(0.0004)
@@ -273,7 +282,7 @@ def ColonyLevel_Segments(label_poygon_seg, ColonyLevelSegments_shp):
         return chunk.apply(lambda row: reduce(lambda geom1, geom2: geom1.union(geom2), [row['geometry']] + row['to_fill']), axis=1)
 
     num_processes = mp.cpu_count()      # Number of parallel processes
-    chunk_size = len(colony_gdf_c_toFill) // num_processes
+    chunk_size = max(1, len(colony_gdf_c_toFill) // num_processes)
     chunks = [colony_gdf_c_toFill[i:i+chunk_size] for i in range(0, len(colony_gdf_c_toFill), chunk_size)]      # Split the DataFrame into chunks
     pool = mp.Pool(processes=num_processes)     # Create a multiprocessing Pool
     results = pool.map(process_row, chunks)     # Apply the function to each chunk in parallel

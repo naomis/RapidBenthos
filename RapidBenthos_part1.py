@@ -1,4 +1,7 @@
-#import libraries
+# RapidBenthos_part1.py — version corrigee
+import sys
+sys.path.append(r"C:\Program Files\Agisoft\Metashape Pro\python")
+
 import os
 import geopandas as gpd
 import pandas as pd
@@ -6,148 +9,161 @@ from shapely.geometry import Polygon
 from functools import reduce
 from tqdm import tqdm
 import rasterio
-from rasterio.mask import mask
 from PIL import Image, ImageFile
 Image.MAX_IMAGE_PIXELS = None
-from RB_fcn_part1 import Filter_segments, camera_point_from_segment_centerPoint,hexagrid
-from osgeo import gdal
-import numpy as np
-import cv2
+from RB_fcn_part1 import Filter_segments, camera_point_from_segment_centerPoint, hexagrid
 from datetime import datetime
+
 def timestamp():
-    return datetime.now().strftime('%Y-%m-%d')
+    return datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
 
-from samgeo import SamGeo, tms_to_geotiff, get_basemaps#
-
-
+from samgeo import SamGeo
 ImageFile.LOAD_TRUNCATED_IMAGES = True
-
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-import Metashape
-#agisoft_LICENSE=5053@agisoft-lmgr.aims.gov.au
 
 ts = timestamp()
 
-#%% set orthomosaic path
+# ============================================================
+# CONFIG
+# ============================================================
+ortho      = r"C:\Users\CMBU\Desktop\testing data\Smash\M7_test_small_1mm.tif"
+out_folder = r"C:\Users\Public\Desktop\RapidBenthos\M7\M7_test_small_0.4mm.tif"
+plot_id    = "M7"
+os.makedirs(out_folder, exist_ok=True)
 
-ortho =  #input path to orthomosaic
-out_folder = #input path to output folder
-plot_id = #input plot|site name
+print(f"Plot ID : {plot_id}")
+print(f"Timestamp : {ts}")
 
-print(plot_id)
+# ============================================================
+# NOMS DE FICHIERS UNIQUES
+# ============================================================
+mask_1           = os.path.join(out_folder, f'{plot_id}_{ts}_mask1.tif')
+mask_2           = os.path.join(out_folder, f'{plot_id}_{ts}_mask2.tif')
+combined_tif     = os.path.join(out_folder, f'{plot_id}_{ts}_combined.tif')
+combined_gpkg    = os.path.join(out_folder, f'{plot_id}_{ts}_combined.gpkg')
+SEG_shp          = os.path.join(out_folder, f'{plot_id}_{ts}_SEG.shp')
+PTS_shp          = os.path.join(out_folder, f'{plot_id}_{ts}_PTS.shp')
+PTS_csv          = os.path.join(out_folder, f'{plot_id}_{ts}_PTS.csv')
+full_grid_shp    = os.path.join(out_folder, f'{plot_id}_{ts}_grid_full.shp')
+clip_grid_shp    = os.path.join(out_folder, f'{plot_id}_{ts}_grid_clip.shp')
+hex_seg_shp      = os.path.join(out_folder, f'{plot_id}_{ts}_hex_seg.shp')
+hex_pts_shp      = os.path.join(out_folder, f'{plot_id}_{ts}_hex_pts.shp')
+hex_pts_csv      = os.path.join(out_folder, f'{plot_id}_{ts}_hex_pts.csv')
+camera_uv_output = os.path.join(out_folder, f'{plot_id}_{{}}' + '_camera_UV.csv')
 
-#%% Polygonise Raster X2
-
-
-#1 finest moving window
-
-
-#Set kwargs and SAM parameters
-device = 'cuda:0'
-
+# ============================================================
+# SAM PASSE FINE
+# ============================================================
+print("\n-> SAM passe fine (128x128)...")
 sam_kwargs = {
     'points_per_side': 128,
     'points_per_batch': 16,
     'pred_iou_thresh': 0.88,
     'stability_score_thresh': 0.94,
     'stability_score_offset': 1.0,
-    'box_nms_thresh':  0.35,
+    'box_nms_thresh': 0.35,
     'crop_n_layers': 0,
     'crop_nms_thresh': 0.9,
     'crop_n_points_downscale_factor': 1,
-    'min_mask_region_area': 1600,}
-
+    'min_mask_region_area': 1600,
+}
 sam = SamGeo(
     model_type="vit_h",
-    checkpoint="sam_vit_h_4b8939.pth",
-    device = device,
+    checkpoint=r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_h_4b8939.pth",
+    device='cuda:0',
     sam_kwargs=sam_kwargs,
 )
+sam.generate(ortho, mask_1, batch=True, foreground=False,
+             mask_multiplier=255, erosion_kernel=(3, 3), bound=100)
+print("-> SAM passe fine OK")
 
-
-
-mask_1 = os.path.join(out_folder, '{}.tif'.format(plot_id  + ts))
-sam.generate(ortho, mask_1, batch=True, foreground=False, mask_multiplier=255, erosion_kernel=(3, 3), sample_size=(5400, 5400), bound=100)
-
-#2 larger moving window
-
-#Set kwargs and SAM parameters
-device = 'cuda:0'
-
-sam_kwargs = {
-    'points_per_side': 200,
-    'points_per_batch': 8,
-    'pred_iou_thresh': 0.88,
-    'stability_score_thresh': 0.94,
-    'stability_score_offset': 1.0,
-    'box_nms_thresh':  0.35,
-    'crop_n_layers': 0,
-    'crop_nms_thresh': 0.9,
-    'crop_n_points_downscale_factor': 1,
-    'min_mask_region_area': 1600,}
-
+# ============================================================
+# SAM PASSE LARGE
+# ============================================================
+print("\n-> SAM passe large (200x200)...")
+sam_kwargs['points_per_side'] = 200
+sam_kwargs['points_per_batch'] = 8
 sam = SamGeo(
     model_type="vit_h",
-    checkpoint="sam_vit_h_4b8939.pth",
-    device = device,
+    checkpoint=r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_h_4b8939.pth",
+    device='cuda:0',
     sam_kwargs=sam_kwargs,
 )
+sam.generate(ortho, mask_2, batch=True, foreground=False,
+             mask_multiplier=255, erosion_kernel=(3, 3), bound=200)
+print("-> SAM passe large OK")
 
+# ============================================================
+# FUSION GDAL
+# ============================================================
+print("\n-> Fusion des masques...")
+dir_path = r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\osgeo_utils"
+gdal_calc_str = 'python {0} -A {1} -B {2} --outfile={3} --calc="A*B" --type=Float32 --hideNoData'
+os.system(gdal_calc_str.format(
+    os.path.join(dir_path, "gdal_calc.py"),
+    mask_1, mask_2, combined_tif
+))
+print("-> Fusion OK")
 
-mask_2 = os.path.join(out_folder, '{}.tif'.format(plot_id +  ts))
-sam.generate(ortho, mask_2, batch=True, foreground=False, mask_multiplier=255, erosion_kernel=(3, 3), sample_size=(8400, 8400), bound=200)
+# ============================================================
+# VECTORISATION
+# ============================================================
+print("\n-> Vectorisation...")
+sam.tiff_to_gpkg(combined_tif, combined_gpkg, simplify_tolerance=None)
+print("-> Vectorisation OK")
 
+# ============================================================
+# FILTRAGE SEGMENTS
+# ============================================================
+print("\n-> Filtrage segments...")
+segments_df_filtered, segments_pts_df = Filter_segments(
+    combined_gpkg, SEG_shp, PTS_shp, PTS_csv)
+print(f"-> Filtrage OK : {len(segments_df_filtered)} segments")
 
+# ============================================================
+# FIX CRS
+# ============================================================
+print("\n-> Fix CRS...")
+import rasterio
+with rasterio.open(ortho) as src:
+    crs_ortho = src.crs
 
-#%%Gdal raster calculator to merge all raster
-dir_path = #input path to lib/python3.8/site-packages/osgeo_utils/
-file_name = "gdal_calc.py"
-gdal_calc_path = os.path.join(dir_path, file_name)
+seg = gpd.read_file(SEG_shp)
+if seg.crs is None:
+    seg = seg.set_crs(crs_ortho)
+    seg.to_file(SEG_shp)
+    print(f"  CRS applique : {crs_ortho}")
+else:
+    print(f"  CRS deja defini : {seg.crs}")
 
+# ============================================================
+# HEXAGRID
+# ============================================================
+print("\n-> Hexagrid...")
+hexagrid_shp, hexagrid_pts = hexagrid(
+    ortho, 0.05,
+    full_grid_shp, SEG_shp,
+    clip_grid_shp, hex_seg_shp,
+    hex_pts_shp, hex_pts_csv
+)
+print(f"-> Hexagrid OK : {len(hexagrid_pts)} points")
 
-Combined_seg_tif =  os.path.join(out_folder, '{}.tif'.format(plot_id +  ts))
-calc_expr = '"A * B"'
-typeof = '"Float32"'
+# ============================================================
+# ETAPE 7 — METASHAPE
+# ============================================================
+# print("\n-> Etape 7 Metashape...")
+# MetashapeProject_path = r"C:\Users\CMBU\Desktop\testing data\M7_0326.psx"
+# Chunk_number = 0
+# PhotoPath = r"C:\Users\CMBU\Desktop\testing data\M7"
 
-# Generate string of process.
-gdal_calc_str = 'python {0} -A {1} -B {2}  --outfile={3} --calc={4} --type={5} --hideNoData'
-gdal_calc_process = gdal_calc_str.format(os.path.join(dir_path, file_name), mask_1, mask_2,
-                                         Combined_seg_tif, calc_expr, typeof)
-# Call process
-os.system(gdal_calc_process)
-print('gdal_calc_process done')
-
-
-#%% vectorise tif
-Combined_seg_shp = os.path.join(out_folder, '{}.gpkg'.format(plot_id +  ts))
-sam.tiff_to_gpkg(Combined_seg_tif, Combined_seg_shp, simplify_tolerance=None)
-
-#%%Filter segments function
-SEG_shp_df_path=os.path.join(out_folder, '{}.shp'.format(plot_id + ts))
-PTS_shp_df_path=os.path.join(out_folder, '{}.shp'.format(plot_id +  ts))
-PTS_csv_df_path=os.path.join(out_folder, '{}.csv'.format(plot_id +  ts))
-
-
-
-segments_df_filtered, segments_pts_df = Filter_segments(Combined_seg_shp, SEG_shp_df_path, PTS_shp_df_path, PTS_csv_df_path)
-
-
-#%% Create hexagrid, merge with segments and export shp + csv
-full_grid_path = os.path.join(out_folder, '{}.shp'.format(plot_id + ts))
-clip_grid_path = os.path.join(out_folder, '{}.shp'.format(plot_id + ts))
-hexagrid_RB_union_path_seg_shp = os.path.join(out_folder, '{}.shp'.format(plot_id + ts))
-hexagrid_RB_union_pst_shp = os.path.join(out_folder, '{}.shp'.format(plot_id + ts))
-hexagrid_RB_union_path_pts_csv = os.path.join(out_folder, '{}.csv'.format(plot_id + ts))
-
-
-hexagird_union_shp, hexagrid_union_pts = hexagrid(ortho, 0.05, full_grid_path, SEG_shp_df_path, clip_grid_path, hexagrid_RB_union_path_seg_shp, hexagrid_RB_union_pst_shp, hexagrid_RB_union_path_pts_csv)
-
-
-#%% Point from centroid no filter function
-MetashapeProject_path = #input path to Metashape project
-Chunk_number= #input chunk number
-PhotoPath = #input path to underlying photos repository
-OutputPath = os.path.join(out_folder, plot_id + '_{}.csv')
-
-camera_uv = camera_point_from_segment_centerPoint(MetashapeProject_path, Chunk_number, PhotoPath, OutputPath, hexagrid_RB_union_path_pts_csv)
-
+# camera_uv = camera_point_from_segment_centerPoint(
+#     MetashapeProject_path, Chunk_number, PhotoPath,
+#     camera_uv_output, hex_pts_csv
+# )
+# print("-> Etape 7 OK")
+# print(f"\nFICHIERS CREES dans : {out_folder}")
+# print(f"  mask1     : {os.path.basename(mask_1)}")
+# print(f"  mask2     : {os.path.basename(mask_2)}")
+# print(f"  combined  : {os.path.basename(combined_tif)}")
+# print(f"  SEG       : {os.path.basename(SEG_shp)}")
+# print(f"  hex_pts   : {os.path.basename(hex_pts_csv)}")

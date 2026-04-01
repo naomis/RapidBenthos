@@ -6,7 +6,11 @@ import sys
 
 
 from datetime import datetime
-import Metashape
+# APRÃˆS
+try:
+    import Metashape
+except ImportError:
+    Metashape = None
 import pandas as pd
 import numpy as np
 from tqdm import tqdm
@@ -563,3 +567,5 @@ def hexagrid(ortho, resolution, full_grid_path, segments_df_filtered, clip_grid_
     RB_shp_df.to_file(hexagrid_SAM_union_path_seg_shp)
 
     return RB_shp_df, RB_pts_df
+
+
