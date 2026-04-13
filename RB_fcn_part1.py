@@ -265,46 +265,61 @@ class CameraStats():
 #%% point_from_RB_centroid_no_filter
 
 def camera_point_from_segment_centerPoint(MetashapeProject_path, Chunk_number, PhotoPath, OutputPath, CenterPoint_path):
-    
-    # open metashape project
+
+    # ─── OUVERTURE PROJET ─────────────────────────────────────
     doc = Metashape.Document()
     doc.open(MetashapeProject_path)
 
-    photo_fold = (PhotoPath)
     ts = timestamp()
     save_path = OutputPath.format(ts)
 
     Empty_centroid = []
 
-    #access metashpe chunk
     chunk = doc.chunks[Chunk_number]
-    T = chunk.transform.matrix
+    T   = chunk.transform.matrix
     crs = chunk.crs
 
-    # open RB_centroid csv and read as dataframe
+    # ─── CHARGER CSV ──────────────────────────────────────────
     RB_centroid = pd.read_csv(CenterPoint_path)
+    print(f"Centroides chargés : {len(RB_centroid)}")
+    print(f"  X UTM : {RB_centroid.center_point_x.min():.1f} → {RB_centroid.center_point_x.max():.1f}")
+    print(f"  Y UTM : {RB_centroid.center_point_y.min():.1f} → {RB_centroid.center_point_y.max():.1f}")
 
-    print("Loading model ...")
+    # ─── FIX CRS : UTM 32737 → CRS du chunk (WGS84) ──────────
+    # IMPORTANT : hex_pts.csv est en UTM EPSG:32737
+    # v_Trans (vertices Metashape) est en WGS84 géographique
+    # → il faut convertir les centroides avant la recherche
+    print("\nConversion UTM 32737 → CRS chunk ...")
+    utm_crs = Metashape.CoordinateSystem("EPSG::32737")
+
+    cx_wgs, cy_wgs = [], []
+    for _, row in RB_centroid.iterrows():
+        pt_utm = Metashape.Vector((row.center_point_x, row.center_point_y, row.average_z))
+        pt_wgs = Metashape.CoordinateSystem.transform(pt_utm, utm_crs, crs)
+        cx_wgs.append(pt_wgs.x)
+        cy_wgs.append(pt_wgs.y)
+
+    RB_centroid["cx_wgs"] = cx_wgs
+    RB_centroid["cy_wgs"] = cy_wgs
+    print(f"  X WGS84 : {RB_centroid.cx_wgs.min():.6f} → {RB_centroid.cx_wgs.max():.6f}")
+    print(f"  Y WGS84 : {RB_centroid.cy_wgs.min():.6f} → {RB_centroid.cy_wgs.max():.6f}")
+    print("✅ Conversion terminée")
+
+    # ─── CHARGER MODÈLE 3D ────────────────────────────────────
+    print("\nLoading model ...")
     tic = time()
-
-    #create array of all vertices coordinate from metashape 3d model
-    model = chunk.models[0]
-    v = []
+    model   = chunk.models[0]
     v_Trans = []
-
     for V in model.vertices:
         transform_vertices = chunk.crs.project(T.mulp(V.coord))
         v_Trans.append(transform_vertices)
-        v.append(V.coord)
-    v=np.asarray(v)
-    v_Trans=np.asarray(v_Trans)
-    print("Done in {}".format(convert_time(time()-tic)))
+    v_Trans = np.asarray(v_Trans)
+    print(f"Done in {convert_time(time()-tic)}")
+    print(f"  X modèle : {v_Trans[:,0].min():.6f} → {v_Trans[:,0].max():.6f}")
+    print(f"  Y modèle : {v_Trans[:,1].min():.6f} → {v_Trans[:,1].max():.6f}")
 
-
-    #create array of all photo centroid from metashape and apply transfomation matrix
-    c = []
-    cams = []
-    c_trans = []
+    # ─── CAMERAS ──────────────────────────────────────────────
+    c, cams, c_trans = [], [], []
     for cam in chunk.cameras:
         try:
             transform_vertices = chunk.crs.project(T.mulp(cam.center))
@@ -313,149 +328,129 @@ def camera_point_from_segment_centerPoint(MetashapeProject_path, Chunk_number, P
             c.append(cam.center)
         except:
             continue
-
-
     c = np.asarray(c)
     cams = np.asarray(cams)
     c_trans = np.asarray(c_trans)
 
-
-    # itterate through all SAM centroid and find photos (+ distance, rotation information) that capture the centroid withing a bounding box to remove distortion
-
-    
+    # ─── EXTRACTION UV ────────────────────────────────────────
     out_df_list = []
-    # loop though each SAM centroid
-    for index, row in tqdm(RB_centroid.iterrows(), total = RB_centroid.shape[0]):
 
-        samID=row.segment_un
+    for index, row in tqdm(RB_centroid.iterrows(), total=RB_centroid.shape[0]):
 
-        # create dataframe subset with only vertices values from row in RB_centroid_csv
-        p = pd.DataFrame({'x': [row.center_point_x],
-                          'y':[row.center_point_y],
-                          'z':[-5]})
+        samID = row.segment_un
 
-        p = np.asarray(p)
+        # ⚠️ Utiliser les coordonnées converties en WGS84
+        cx = row.cx_wgs
+        cy = row.cy_wgs
 
-        #create empty list to append vertices that are within range from centroid
         verts = []
 
+        # eps progressif en degrés (WGS84)
+        # 0.0001° ≈ 11m  |  0.0005° ≈ 55m  |  0.001° ≈ 110m  |  0.002° ≈ 220m
+        for eps in [0.0001, 0.0005, 0.001, 0.002]:
+            x_cond = np.where((v_Trans[:,0] > cx - eps) & (v_Trans[:,0] < cx + eps))
+            y_cond = np.where((v_Trans[:,1] > cy - eps) & (v_Trans[:,1] < cy + eps))
+            verts  = v_Trans[np.intersect1d(x_cond, y_cond)]
+            if len(verts) > 0:
+                break
 
-        #filter 3D vertices between distance treshold range of segment center point and append to list
-
-        eps = 0.002
-        x_condition = np.where(np.logical_and(v_Trans[:,0] > p[0, 0] - eps, v_Trans[:,0] < p[0,0] + eps ))
-        y_condition = np.where(np.logical_and(v_Trans[:,1] > p[0, 1] - eps, v_Trans[:,1] < p[0,1] + eps ))
-
-        verts = v_Trans[np.intersect1d(x_condition, y_condition)]
         if len(verts) == 0:
-            eps = 0.0025
-            x_condition = np.where(np.logical_and(v_Trans[:,0] > p[0, 0] - eps, v_Trans[:,0] < p[0,0] + eps ))
-            y_condition = np.where(np.logical_and(v_Trans[:,1] > p[0, 1] - eps, v_Trans[:,1] < p[0,1] + eps ))
-            verts = v_Trans[np.intersect1d(x_condition, y_condition)]
+            Empty_centroid.append(samID)
+            continue
 
-            if len(verts) == 0:
-                eps = 0.005
-                x_condition = np.where(np.logical_and(v_Trans[:,0] > p[0, 0] - eps, v_Trans[:,0] < p[0,0] + eps ))
-                y_condition = np.where(np.logical_and(v_Trans[:,1] > p[0, 1] - eps, v_Trans[:,1] < p[0,1] + eps ))
-                verts = v_Trans[np.intersect1d(x_condition, y_condition)]
+        # Vertex avec Z max (vue plongeante)
+        xy_max_z = list(max(verts, key=lambda x: x[2])[:])
+        X, Y, Z  = xy_max_z
+        p = T.inv().mulp(crs.unproject(Metashape.Vector((X, Y, Z))))
 
-                if len(verts) == 0:
-                    Empty_centroid.append(samID)
-                    continue
-
-        # filter vert list to choose the vertex with highest z values (ortho looking top down)
-        xy_max_z_arr = max(verts, key=lambda x: x[2])[:]
-        xy_max_z = list(xy_max_z_arr)
-
-        cam_sub = []
         cam_UV = []
-        X, Y, Z  = (xy_max_z) # point with X, Y, Z global coordinates in chunk.crs
-        p = T.inv().mulp(chunk.crs.unproject(Metashape.Vector((X,Y,Z)))) # point in internal CS
-
-        #create dataframe with all photos and UV values per Segements center points
         for camera in chunk.cameras:
             try:
                 if not camera.project(p):
                     continue
-                #if camera.enabled == False: #to filter out disabeled cameras
-                #continue
-                u = camera.project(p).x   # u pixel coordinates in camera
-                v = camera.project(p).y	  # v pixel coordinates in camera
-                if (u < 0 or u > camera.sensor.width or v < 0 or v > camera.sensor.height):
+                u   = camera.project(p).x
+                v   = camera.project(p).y
+                if (u < 0 or u > camera.sensor.width or
+                        v < 0 or v > camera.sensor.height):
                     continue
 
-                estimated_coord = chunk.crs.project(T.mulp(camera.center)) #estimated XYZ in coordinate system units
-                cam_vec_int = camera.transform.mulv(Metashape.Vector([0,0,1]))
+                estimated_coord = crs.project(T.mulp(camera.center))
+                cam_vec_int = camera.transform.mulv(Metashape.Vector([0, 0, 1]))
                 cam_vec_ext = chunk.transform.matrix.mulv(cam_vec_int)
                 cam_vec_ext.normalize()
+
                 s1 = Point3D(X, Y, Z)
                 s2 = Point3D(estimated_coord.x, estimated_coord.y, estimated_coord.z)
-                distn = (s1.distance(s2))
-                distn_2d = (s1.distance_2D(s2))
-                cam_sub.append(camera)
-                cam_UV.append({'camera_id':camera.label,
-                           'U':u,
-                           'V':v,
-			   'dis_3D':distn,
-                           'dis_2D':distn_2d,
-                           'camera_path': camera.photo.path,
-                           'camera_rotation': CameraStats(camera).estimated_rotation,
-                           'SAM_ID':samID,
-                           'cam_enable': camera.enabled,
-                           'camera_center_coordinate' : s2                           #'class': Class
 
-                           })
+                cam_UV.append({
+                    'camera_id'               : camera.label,
+                    'U'                       : u,
+                    'V'                       : v,
+                    'dis_3D'                  : s1.distance(s2),
+                    'dis_2D'                  : s1.distance_2D(s2),
+                    'camera_path'             : camera.photo.path,
+                    'camera_rotation'         : CameraStats(camera).estimated_rotation,
+                    'SAM_ID'                  : samID,
+                    'cam_enable'              : camera.enabled,
+                    'camera_center_coordinate': s2,
+                })
             except:
                 continue
-	    
+
+        if len(cam_UV) == 0:
+            continue
 
         uv_cam_df = pd.DataFrame(cam_UV)
 
-        #filter points between camera bouding box (750 pix) and sort by distance and select 10 closest or distance less than 3m
+        uv_bbox = uv_cam_df[
+            (uv_cam_df["U"] > 750)  & (uv_cam_df["U"] < 7506) &
+            (uv_cam_df["V"] > 750)  & (uv_cam_df["V"] < 4754)
+        ]
+        uv_10 = uv_bbox.sort_values(by=['dis_2D', 'dis_3D']).head(10)
 
-        uv_bbox = uv_cam_df[(uv_cam_df["U"] > 750)  & (uv_cam_df["U"] < 7506 ) & (uv_cam_df["V"] > 750) & (uv_cam_df["V"] < 4754 )]
-        uv_10 = uv_bbox.sort_values(by = ['dis_2D', 'dis_3D'], ascending = [True, True]).head(10)
+        for _, r in uv_10.iterrows():
+            out_df_list.append({
+                'SAM_centroid'           : samID,
+                'camera_id'              : r.camera_id + '.JPG',
+                'camera_path'            : r.camera_path,
+                'U'                      : r.U,
+                'V'                      : r.V,
+                'point_x'               : row.center_point_x,
+                'point_y'               : row.center_point_y,
+                'vertex_x'              : X,
+                'vertex_y'              : Y,
+                'vertex_z'              : Z,
+                'cam_estimated_x'       : r.camera_center_coordinate.x,
+                'cam_estimated_y'       : r.camera_center_coordinate.y,
+                'cam_estimated_z'       : r.camera_center_coordinate.z,
+                'distance_3D_cam_vert'  : r.dis_3D,
+                'distance_2D_cam_vert'  : r.dis_2D,
+                'camera_rotation'       : r.camera_rotation,
+                'camera_yaw'            : r.camera_rotation[0],
+                'camera_pitch'          : r.camera_rotation[1],
+                'camera_roll'           : r.camera_rotation[2],
+                'camera_enable'         : r.cam_enable,
+            })
 
-
-        #create final dataframe with filtered points
-        for i, r in uv_10.iterrows():
-            cam_id = (r.camera_id +'.JPG')
-            cam_path = r.camera_path
-            out_df_list.append({'SAM_centroid': samID,
-                                'camera_id': cam_id,
-                                'camera_path': cam_path,
-                                'U':r.U,
-                                'V':r.V,
-                                'point_x':row.center_point_x,
-                                'point_y':row.center_point_y,
-                                'vertex_x': xy_max_z[0],
-                                'vertex_y': xy_max_z[1],
-                                'vertex_z': xy_max_z[2],
-                                'cam_estimated_x':r.camera_center_coordinate.x,
-                                'cam_estimated_y':r.camera_center_coordinate.y,
-                                'cam_estimated_z':r.camera_center_coordinate.z,
-                                'distance_3D_cam_vert':r.dis_3D,
-                                'distance_2D_cam_vert':r.dis_2D,                                
-			        'camera_rotation': r.camera_rotation,
-                                'camera_yaw': r.camera_rotation[0],
-                                'camera_pitch':r.camera_rotation[1],
-                                'camera_roll':r.camera_rotation[2],
-                                'camera_enable': r.cam_enable
-                                })
-
-
+    # ─── SAVE ─────────────────────────────────────────────────
     camera_UV_csv = pd.DataFrame(out_df_list)
 
-    # Save csv
-    if not os.path.exists(save_path):
-        camera_UV_csv.to_csv(save_path, index=False)
+    print(f"\n{'='*50}")
+    print(f"Points UV trouvés      : {len(out_df_list)}")
+    print(f"Centroides sans vertex : {len(Empty_centroid)} / {len(RB_centroid)}")
+
+    if len(camera_UV_csv) > 0:
+        if not os.path.exists(save_path):
+            camera_UV_csv.to_csv(save_path, index=False)
+        else:
+            camera_UV_csv.to_csv(save_path, mode='a', index=False, header=False)
+        print(f"✅ Fichier sauvegardé : {save_path}")
+        print(f"Caméras uniques      : {camera_UV_csv.camera_id.nunique()}")
+        print(f"Segments uniques     : {camera_UV_csv.SAM_centroid.nunique()}")
     else:
-        camera_UV_csv.to_csv(save_path, mode='a', index=False, header=False)
+        print("❌ Aucun point trouvé — vérifier le CRS du chunk dans Metashape")
 
     return camera_UV_csv
-
-
-#%% HexaGrid functions
 
 def create_hexagon(l, x, y):
     """
