@@ -27,14 +27,7 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
-# ============================================================
-# PHASE 1 : 18 tuiles reparties sur toute la zone M7
-# -> apres phase 1 : ~50-80 cameras uniques
-# -> classification representative possible des la fin phase 1
-#
-# PHASE 2 : 58 tuiles restantes
-# -> couverture complete M7
-# ============================================================
+ 
 
 PHASE_1_diversite = [
     1,           # Haut
