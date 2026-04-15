@@ -1,3 +1,18 @@
+import os, sys
+_dll = os.path.join(os.path.dirname(sys.executable), 'Library', 'bin')
+if hasattr(os, 'add_dll_directory') and os.path.exists(_dll):
+    os.add_dll_directory(_dll)
+os.environ['PATH'] = _dll + ';' + os.environ.get('PATH', '')
+os.environ['GDAL_DATA'] = os.path.join(os.path.dirname(sys.executable), 'Library', 'share', 'gdal')
+os.environ['PROJ_LIB'] = os.path.join(os.path.dirname(sys.executable), 'Library', 'share', 'proj')
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+import os, sys
+_dll = os.path.join(os.path.dirname(sys.executable), 'Library', 'bin')
+if hasattr(os, 'add_dll_directory') and os.path.exists(_dll):
+    os.add_dll_directory(_dll)
+os.environ['PATH'] = _dll + ';' + os.environ.get('PATH', '')
+os.environ['GDAL_DATA'] = os.path.join(os.path.dirname(sys.executable), 'Library', 'share', 'gdal')
+os.environ['PROJ_LIB'] = os.path.join(os.path.dirname(sys.executable), 'Library', 'share', 'proj')
 # ============================================
 # FIX DLLs 
 # ============================================
@@ -44,13 +59,13 @@ ts = timestamp()
 # ============================================
 # ENTRÉES
 # ============================================
-ortho      = r"C:\Users\CMBU\Desktop\testing data\M7_test_small_1mm.tif"
-out_folder = r"C:\Users\Public\Desktop\RapidBenthos\M7\M7_test_small_1mm_anothertest" 
-plot_id    = "M7"
+ortho      = r"C:\Users\CMBU\Desktop\testing data\R1_EPSG32737_0.5mm.tif"
+out_folder = r"C:\Users\CMBU\Desktop\RapidBenthos\R1" 
+plot_id    = "R1"
 
-MetashapeProject_path = r"\\Creo34-nas\CREO\241275_ENVIR_EXXONMOBIL_MOZAMBIQUE\DATA\PSM\PROCESS\M7_0326.psx"
+MetashapeProject_path = r"\\Creo34-nas\CREO\241275_ENVIR_EXXONMOBIL_MOZAMBIQUE\DATA\PSM\PROCESS\R1_0326.psx"
 Chunk_number = 0
-PhotoPath    = r"\\Creo34-nas\CREO\241275_ENVIR_EXXONMOBIL_MOZAMBIQUE\DATA\PSM\DATA\M7"
+PhotoPath    = r"\\Creo34-nas\CREO\241275_ENVIR_EXXONMOBIL_MOZAMBIQUE\DATA\PSM\RAW\R1"
 
 os.makedirs(out_folder, exist_ok=True)
 print("=" * 50)
@@ -229,3 +244,4 @@ gdf = gpd.read_file(SEG_shp)
 print(f"\n📊 Polygones détectés : {len(gdf)}")
 print(f"   Surface moyenne   : {gdf.geometry.area.mean():.4f} m²")
 print(f"\n💡 Ouvre {Combined_seg_gpkg} dans QGIS !")
+
