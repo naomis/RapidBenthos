@@ -1,0 +1,24 @@
+# ================================================================
+# RapidBenthos — config.yaml
+# Chemins internes au conteneur (pas les chemins Windows)
+# Les chemins Windows sont dans .env → montés comme volumes Docker
+# ================================================================
+
+site:
+  plot_id:    "M7_test"
+  # Ortho montée depuis DATA_PATH dans .env
+  ortho:      "/app/data/M7_test_small.tif"
+  # Sorties écrites dans OUTPUT_PATH dans .env
+  out_folder: "/app/outputs"
+
+metashape:
+  # Projet .psx monté depuis DATA_PATH dans .env
+  project_path: "/app/data/M7_0326.psx"
+  chunk_number: 0
+  # Photos montées depuis PHOTOS_PATH dans .env
+  photo_path:   "/app/photos"
+
+sam:
+  # Checkpoint monté depuis CHECKPOINT_PATH dans .env
+  checkpoint:  "/app/checkpoints/sam_vit_h_4b8939.pth"
+  model_type:  "vit_h"
