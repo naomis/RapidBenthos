@@ -4,7 +4,7 @@
 
 services:
 
-  # ── Traitement principal Part 1 ────────────────────────────────
+  # ── Main processing Part 1 ─────────────────────────────────────
   rapidbenthos:
 
     build:
@@ -33,19 +33,19 @@ services:
       - AGISOFT_LICENSE_KEY=${METASHAPE_LICENSE_KEY}
 
     volumes:
-      # Données site (tif + psx) → /app/data
+      # Site data (tif + psx) → /app/data
       - ${DATA_PATH}:/app/data:ro
-      # Photos JPG → /app/photos
+      # JPG photos → /app/photos
       - ${PHOTOS_PATH}:/app/photos:ro
-      # Checkpoint SAM → /app/checkpoints
+      # SAM checkpoint → /app/checkpoints
       - ${CHECKPOINT_PATH}:/app/checkpoints:ro
-      # Sorties → /app/outputs
+      # Outputs → /app/outputs
       - ${OUTPUT_PATH}:/app/outputs:rw
       # Logs → /app/logs
       - ${LOG_PATH}:/app/logs:rw
-      # Scripts Python (modifiables sans rebuild)
+      # Python scripts (editable without rebuild)
       - ./Scripts:/app/Scripts:ro
-      # Config site
+      # Site config
       - ./config.yaml:/app/config.yaml:ro
 
     shm_size: "16gb"
@@ -59,7 +59,7 @@ services:
 
     command: python /app/Scripts/RapidBenthos_part1.py
 
-  # ── Test GPU + imports ─────────────────────────────────────────
+  # ── GPU + imports test ─────────────────────────────────────────
   test-gpu:
 
     build:
