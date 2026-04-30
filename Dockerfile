@@ -112,7 +112,18 @@ RUN pip install --no-cache-dir \
 COPY wheels/metashape-2.3.0-cp39.cp310.cp311.cp312.cp313-abi3-linux_x86_64.whl /tmp/
 RUN pip install --no-cache-dir /tmp/metashape-2.3.0-cp39.cp310.cp311.cp312.cp313-abi3-linux_x86_64.whl \
     && rm /tmp/*.whl
+# ================================================================
+# STEP 6b — Metashape binaire complet (pour activation CLI)
+# ================================================================
+COPY wheels/metashape-pro_2_3_0_amd64.tar.gz /tmp/
 
+RUN tar -xzf /tmp/metashape-pro_2_3_0_amd64.tar.gz -C /opt/ \
+    && mv /opt/metashape-pro /opt/metashape \
+    && rm /tmp/metashape-pro_2_3_0_amd64.tar.gz
+
+# Wrapper propre (PAS de symlink)
+RUN echo '#!/bin/bash\n/opt/metashape/metashape.sh "$@"' > /usr/local/bin/metashape \
+    && chmod +x /usr/local/bin/metashape
 # ================================================================
 # STEP 7 — Utilities
 # ================================================================
@@ -158,8 +169,11 @@ RUN echo "=== Import verification ===" && \
     python -c "from PIL import Image; import PIL; print('Pillow        :', PIL.__version__)" && \
     python -c "import Metashape; print('Metashape     :', Metashape.app.version)" && \
     echo "=== All OK ==="
+# ================================================================
+# STEP 11 — Entrypoint
+# ================================================================
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
-# ================================================================
-# Default command
-# ================================================================
+ENTRYPOINT ["/app/entrypoint.sh"]
 CMD ["python", "/app/Scripts/RapidBenthos_part1.py"]

@@ -30,7 +30,8 @@ services:
     environment:
       - PYTHONPATH=/app/Scripts:/app
       - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
-      - AGISOFT_LICENSE_KEY=${METASHAPE_LICENSE_KEY}
+      - METASHAPE_LICENSE_KEY=${METASHAPE_LICENSE_KEY}
+
 
     volumes:
       # Site data (tif + psx) → /app/data
@@ -85,7 +86,7 @@ services:
     environment:
       - PYTHONPATH=/app/Scripts:/app
       - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
-      - AGISOFT_LICENSE_KEY=${METASHAPE_LICENSE_KEY}
+      - METASHAPE_LICENSE_KEY=${METASHAPE_LICENSE_KEY}
 
     volumes:
       - ${DATA_PATH}:/app/data:ro
@@ -99,4 +100,4 @@ services:
     shm_size: "4gb"
     restart: "no"
 
-    command: python /app/Scripts/test_environment.py
+    #command: python /app/Scripts/test_environment.py

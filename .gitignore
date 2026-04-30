@@ -138,3 +138,5 @@ wheels/*.whl
 
 # R1 folder (generated data)
 R1/
+license/
+*.lic
