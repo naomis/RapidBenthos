@@ -100,4 +100,4 @@ services:
     shm_size: "4gb"
     restart: "no"
 
-    #command: python /app/Scripts/test_environment.py
+    command: python /app/Scripts/test_environment.py

@@ -1,19 +1,6 @@
 #!/bin/bash
 # ================================================================
-# RapidBenthos — entrypoint.sh (version production finale)
-# ================================================================
-# PROTECTIONS :
-#   ✅ Fin normale pipeline       → désactivation garantie
-#   ✅ Erreur Python (crash)      → désactivation garantie
-#   ✅ Ctrl+C (SIGINT)            → désactivation garantie
-#   ✅ docker stop (SIGTERM)      → désactivation garantie
-#   ✅ docker stop lent           → timeout augmenté à 60s
-#   ⚠️  docker kill / coupure courant → impossible à couvrir
-#      (limitation hardware — seule licence flottante couvre ce cas)
-#
-# MODES :
-#   METASHAPE_LICENSE_KEY=MA-CLE  → activation réelle
-#   METASHAPE_LICENSE_KEY=SKIP    → test sans clé (simulation)
+# RapidBenthos — entrypoint.sh 
 # ================================================================
 
 METASHAPE_KEY="${METASHAPE_LICENSE_KEY:-}"
