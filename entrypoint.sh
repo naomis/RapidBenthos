@@ -45,19 +45,19 @@ cleanup() {
 
         if [ "$SKIP_MODE" = "1" ]; then
             echo "[MODE TEST] Désactivation simulée"
-            echo "✅ Licence désactivée (simulée) — slot libéré"
+            echo " Licence désactivée (simulée) — slot libéré"
         else
             # Tentative 1
             if $METASHAPE_BIN --deactivate; then
-                echo "✅ Licence désactivée — slot libéré"
+                echo " Licence désactivée — slot libéré"
             else
                 echo "⚠️  Tentative 1 échouée — nouvelle tentative dans 5s..."
                 sleep 5
                 # Tentative 2
                 if $METASHAPE_BIN --deactivate; then
-                    echo "✅ Licence désactivée (tentative 2) — slot libéré"
+                    echo " Licence désactivée (tentative 2) — slot libéré"
                 else
-                    echo "❌ Désactivation échouée après 2 tentatives"
+                    echo " Désactivation échouée après 2 tentatives"
                     echo "   → Contacter support@agisoft.com"
                     echo "   → Clé : ${METASHAPE_KEY:0:5}-****-****-****-*****"
                 fi
@@ -78,7 +78,7 @@ trap cleanup EXIT INT TERM
 # VÉRIFICATION VARIABLES
 # ================================================================
 if [ -z "$METASHAPE_KEY" ]; then
-    echo "❌ METASHAPE_LICENSE_KEY vide dans .env"
+    echo " METASHAPE_LICENSE_KEY vide dans .env"
     echo "   → Vraie clé  : METASHAPE_LICENSE_KEY=XXXXX-XXXXX-..."
     echo "   → Mode test  : METASHAPE_LICENSE_KEY=SKIP"
     exit 1
@@ -95,7 +95,7 @@ if [ "$METASHAPE_KEY" = "SKIP" ]; then
     # ── Mode test ──────────────────────────────────────────────
     SKIP_MODE=1
     ACTIVATED=1
-    echo "⚠️  [MODE TEST] Activation simulée — aucun appel réseau"
+    echo "  [MODE TEST] Activation simulée — aucun appel réseau"
     echo "   → L'étape Metashape sera ignorée dans le pipeline"
 
 else
@@ -109,16 +109,16 @@ else
         export AGISOFT_LICENSE_PATH="/var/tmp/agisoft/licensing/licenses"
 
     else
-        echo "⚠️  Tentative 1 échouée — nouvelle tentative dans 10s..."
+        echo "  Tentative 1 échouée — nouvelle tentative dans 10s..."
         sleep 10
 
         # Tentative 2
         if $METASHAPE_BIN --activate "$METASHAPE_KEY"; then
             ACTIVATED=1
-            echo "✅ Licence activée (tentative 2)"
+            echo " Licence activée (tentative 2)"
             export AGISOFT_LICENSE_PATH="/var/tmp/agisoft/licensing/licenses"
         else
-            echo "❌ Activation échouée après 2 tentatives"
+            echo " Activation échouée après 2 tentatives"
             echo "   → Vérifier la clé ou contacter support@agisoft.com"
             exit 1
         fi

@@ -1,7 +1,5 @@
 # ================================================================
 # RapidBenthos — config.yaml
-# Container internal paths (not Windows paths)
-# Windows paths are in .env → mounted as Docker volumes
 # ================================================================
 
 site:
