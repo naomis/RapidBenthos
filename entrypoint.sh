@@ -1,146 +1,160 @@
 #!/bin/bash
-# ================================================================
-# RapidBenthos — entrypoint.sh 
-# ================================================================
+# ==============================================================================
+# RapidBenthos Pipeline — License Manager
+# Author  : Mohamed Bouchalkha — CREOCEAN
+# Date    : 2026
+# Purpose : Automated Metashape license activation/deactivation lifecycle
+#           ensuring license slot is always released on container exit
+# ==============================================================================
 
 METASHAPE_KEY="${METASHAPE_LICENSE_KEY:-}"
 METASHAPE_BIN="metashape"
+METASHAPE_LIC="/var/tmp/agisoft/licensing/licenses/metashape-pro.lic"
 ACTIVATED=0
 SKIP_MODE=0
 CHILD_PID=""
 
-# ================================================================
-# CLEANUP — désactivation garantie dans tous les cas
-# ================================================================
+# ------------------------------------------------------------------------------
+# verify_deactivation
+# Secondary control level : checks that the .lic file is gone after deactivation
+# ------------------------------------------------------------------------------
+verify_deactivation() {
+    if [ -f "$METASHAPE_LIC" ]; then
+        echo "WARNING: .lic file still present after deactivation — slot may still be taken"
+        return 1
+    else
+        echo "Confirmed: .lic file removed — slot is free"
+        return 0
+    fi
+}
+
+# ------------------------------------------------------------------------------
+# cleanup
+# Guarantees license deactivation regardless of how the container terminates
+# ------------------------------------------------------------------------------
 cleanup() {
     echo ""
-    echo "=================================================="
-    echo "Arrêt détecté — sécurisation de la licence..."
-    echo "=================================================="
+    echo "Container shutdown detected — securing license..."
 
-    # Si le pipeline tourne encore → l'arrêter proprement
+    # Gracefully stop the pipeline process if still running
     if [ -n "$CHILD_PID" ] && kill -0 "$CHILD_PID" 2>/dev/null; then
-        echo "Arrêt du pipeline en cours..."
+        echo "Stopping pipeline process..."
         kill -TERM "$CHILD_PID" 2>/dev/null
 
-        # Attendre max 30s que Python se termine proprement
         local WAIT=0
         while kill -0 "$CHILD_PID" 2>/dev/null && [ $WAIT -lt 30 ]; do
             sleep 1
             WAIT=$((WAIT + 1))
         done
 
-        # Si toujours vivant après 30s → forcer
         if kill -0 "$CHILD_PID" 2>/dev/null; then
-            echo "Force arrêt pipeline..."
             kill -KILL "$CHILD_PID" 2>/dev/null
         fi
         CHILD_PID=""
     fi
 
-    # Désactiver Metashape
+    # Deactivate Metashape license with secondary verification
     if [ "$ACTIVATED" = "1" ]; then
-        echo ""
-        echo "Désactivation Metashape licence..."
+        echo "Deactivating Metashape license..."
 
         if [ "$SKIP_MODE" = "1" ]; then
-            echo "[MODE TEST] Désactivation simulée"
-            echo " Licence désactivée (simulée) — slot libéré"
+            echo "[ TEST MODE ] Deactivation simulated — no network call"
         else
-            # Tentative 1
+            # Attempt 1
             if $METASHAPE_BIN --deactivate; then
-                echo " Licence désactivée — slot libéré"
-            else
-                echo "⚠️  Tentative 1 échouée — nouvelle tentative dans 5s..."
-                sleep 5
-                # Tentative 2
-                if $METASHAPE_BIN --deactivate; then
-                    echo " Licence désactivée (tentative 2) — slot libéré"
+                # Secondary control : verify .lic file is actually gone
+                if verify_deactivation; then
+                    echo "License deactivated — slot released"
                 else
-                    echo " Désactivation échouée après 2 tentatives"
-                    echo "   → Contacter support@agisoft.com"
-                    echo "   → Clé : ${METASHAPE_KEY:0:5}-****-****-****-*****"
+                    echo "Deactivation reported success but .lic still present — retrying..."
+                    sleep 5
+                    $METASHAPE_BIN --deactivate && verify_deactivation || true
+                fi
+            else
+                echo "Deactivation attempt 1 failed — retrying in 5s..."
+                sleep 5
+
+                # Attempt 2
+                if $METASHAPE_BIN --deactivate; then
+                    if verify_deactivation; then
+                        echo "License deactivated (attempt 2) — slot released"
+                    else
+                        echo "ERROR: Deactivation failed — .lic still present"
+                        echo "  Contact : support@agisoft.com"
+                        echo "  Key     : ${METASHAPE_KEY:0:5}-****-****-****-*****"
+                    fi
+                else
+                    echo "ERROR: Deactivation failed after 2 attempts"
+                    echo "  Contact : support@agisoft.com"
+                    echo "  Key     : ${METASHAPE_KEY:0:5}-****-****-****-*****"
                 fi
             fi
         fi
         ACTIVATED=0
     fi
 
-    echo "=================================================="
-    echo "Container terminé proprement."
-    echo "=================================================="
+    echo "Container terminated."
 }
 
-# Piège sur tous les signaux
 trap cleanup EXIT INT TERM
 
-# ================================================================
-# VÉRIFICATION VARIABLES
-# ================================================================
+# ------------------------------------------------------------------------------
+# Validate required environment variable
+# ------------------------------------------------------------------------------
 if [ -z "$METASHAPE_KEY" ]; then
-    echo " METASHAPE_LICENSE_KEY vide dans .env"
-    echo "   → Vraie clé  : METASHAPE_LICENSE_KEY=XXXXX-XXXXX-..."
-    echo "   → Mode test  : METASHAPE_LICENSE_KEY=SKIP"
+    echo "ERROR: METASHAPE_LICENSE_KEY is not set in .env"
+    echo "  Production : METASHAPE_LICENSE_KEY=XXXXX-XXXXX-XXXXX-XXXXX-XXXXX"
+    echo "  Test mode  : METASHAPE_LICENSE_KEY=SKIP"
     exit 1
 fi
 
-# ================================================================
-# ACTIVATION
-# ================================================================
-echo "=================================================="
-echo "Activation Metashape licence..."
-echo "=================================================="
+# ------------------------------------------------------------------------------
+# License activation
+# ------------------------------------------------------------------------------
+echo "Activating Metashape license..."
 
 if [ "$METASHAPE_KEY" = "SKIP" ]; then
-    # ── Mode test ──────────────────────────────────────────────
     SKIP_MODE=1
     ACTIVATED=1
-    echo "  [MODE TEST] Activation simulée — aucun appel réseau"
-    echo "   → L'étape Metashape sera ignorée dans le pipeline"
-
+    echo "[ TEST MODE ] Activation simulated — Metashape step will be skipped"
 else
-    # ── Activation réelle ──────────────────────────────────────
-    echo "   Clé : ${METASHAPE_KEY:0:5}-****-****-****-*****"
+    echo "Key : ${METASHAPE_KEY:0:5}-****-****-****-*****"
 
-    # Tentative 1
     if $METASHAPE_BIN --activate "$METASHAPE_KEY"; then
         ACTIVATED=1
-        echo "✅ Licence activée"
         export AGISOFT_LICENSE_PATH="/var/tmp/agisoft/licensing/licenses"
-
+        echo "License activated"
     else
-        echo "  Tentative 1 échouée — nouvelle tentative dans 10s..."
+        echo "Activation attempt 1 failed — retrying in 10s..."
         sleep 10
-
-        # Tentative 2
         if $METASHAPE_BIN --activate "$METASHAPE_KEY"; then
             ACTIVATED=1
-            echo " Licence activée (tentative 2)"
             export AGISOFT_LICENSE_PATH="/var/tmp/agisoft/licensing/licenses"
+            echo "License activated (attempt 2)"
         else
-            echo " Activation échouée après 2 tentatives"
-            echo "   → Vérifier la clé ou contacter support@agisoft.com"
+            echo "ERROR: Activation failed after 2 attempts"
+            echo "  Verify license key or contact support@agisoft.com"
             exit 1
         fi
     fi
 fi
 
-# ================================================================
-# LANCEMENT DU PIPELINE
-# ================================================================
-echo ""
-echo "=================================================="
-echo "Lancement pipeline..."
-echo "=================================================="
+# ------------------------------------------------------------------------------
+# Pipeline execution
+# ------------------------------------------------------------------------------
+echo "Starting pipeline..."
 
-# Lancer en arrière-plan → bash reste vivant → trap actif
 "$@" &
 CHILD_PID=$!
 
-# Attendre la fin et récupérer le code de retour
-wait "$CHILD_PID"
+# Wait loop using wait -n to catch all interruptions from sub-processes
+while kill -0 "$CHILD_PID" 2>/dev/null; do
+    wait -n 2>/dev/null || true
+done
+
+# Final wait to retrieve the exact exit code of the pipeline
+wait "$CHILD_PID" 2>/dev/null
 EXIT_CODE=$?
 CHILD_PID=""
 
-# cleanup() appelé automatiquement par trap EXIT
 exit $EXIT_CODE
