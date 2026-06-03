@@ -16,7 +16,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     CUDA_VISIBLE_DEVICES=0 \
     GDAL_DATA=/usr/share/gdal \
     PROJ_LIB=/usr/share/proj \
-    OMP_NUM_THREADS=4 \
+    OMP_NUM_THREADS=8 \
     PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
 
 # ================================================================
@@ -105,6 +105,24 @@ RUN pip install --no-cache-dir \
     rasterio==1.3.9 \
     pandas==2.0.3 \
     Pillow==10.0.0
+# ================================================================
+# STEP 5b — Fix tqdm/Metashape thread conflict
+# Le monitor thread de tqdm 4.x cause un crash fatal (none_dealloc)
+# quand Metashape itère sur des objets C++ en Python 3.10
+# Solution : désactiver le monitor thread au niveau du package
+# ================================================================
+
+#RUN pip install --no-cache-dir "tqdm==4.66.0" && \
+#    python -c "
+#import tqdm
+# Patch permanent dans le package installé
+#import tqdm._monitor as _mon
+#_mon.TRMonitor = type('TRMonitor', (), {
+#    '__init__': lambda self, *a, **k: None,
+ #   'exit': lambda self: None,
+  #  'start': lambda self: None,
+#})
+#print('tqdm monitor patch OK')"
 
 # ================================================================
 # STEP 6 — Metashape headless

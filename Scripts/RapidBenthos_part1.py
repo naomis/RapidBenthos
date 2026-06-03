@@ -1,16 +1,18 @@
 """
 RapidBenthos — Part 1 : Segmentation SAM + Hexagrid
 ====================================================
+Author  : Mohamed Bouchalkha — CREOCEAN
+Date    : 2026
 Workflow :
-  1. SAM passe fine  (128×128 points/side)
-  2. SAM passe large (200×200 points/side)
-  3. Fusion GDAL     (masque1 × masque2)
-  4. Vectorisation   (.tif → .gpkg)
+  1. SAM passe fine  (128x128 points/side)
+  2. SAM passe large (200x200 points/side)
+  3. Fusion GDAL     (masque1 x masque2)
+  4. Vectorisation   (.tif -> .gpkg)
   5. Filtrage + Hexagrid
   6. Liaison Metashape (optionnel)
 
 Config : /app/config.yaml  (chemin interne container)
-Entrées : montées via volumes Docker (voir docker-compose.yml)
+Entrees : montees via volumes Docker (voir docker-compose.yml)
 """
 
 # ================================================================
@@ -18,21 +20,21 @@ Entrées : montées via volumes Docker (voir docker-compose.yml)
 # ================================================================
 import os
 import sys
-import tqdm
+
 # CUDA
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-# Monkey-patch : force tqdm à écrire sur stderr avec TTY simulé
-_original_init = tqdm.tqdm.__init__
 
-def _patched_init(self, *args, **kwargs):
-    kwargs.setdefault('file', sys.stderr)
-    kwargs.setdefault('dynamic_ncols', True)
-    # Force l'affichage même si isatty() = False
-    if not sys.stderr.isatty():
-        kwargs.setdefault('ncols', 100)
-    _original_init(self, *args, **kwargs)
+# Fix tqdm (1/2) — desactiver le thread monitor AVANT tout import
+# Evite le crash "Fatal Python error: none_dealloc" lors de
+# l'interaction entre le monitor thread de tqdm et l'API Metashape
+import tqdm as _tqdm_module
+_tqdm_module.tqdm.monitor_interval = 0
 
-tqdm.tqdm.__init__ = _patched_init
+# Fix tqdm (2/2) — affichage Docker sans TTY
+# Via variable d'environnement : plus safe que monkey-patch
+# (le monkey-patch modifie __init__ globalement et interfere avec Metashape)
+os.environ.setdefault('TQDM_NCOLS', '100')
+
 # ================================================================
 # IMPORTS
 # ================================================================
@@ -54,18 +56,19 @@ ImageFile.LOAD_TRUNCATED_IMAGES = True
 sys.path.insert(0, os.path.dirname(__file__))
 from RB_fcn_part1 import Filter_segments, hexagrid
 
+# Metashape est optionnel (licence requise)
 try:
     import Metashape
     METASHAPE_OK = True
-    print(f"✅ Metashape OK : {Metashape.app.version}")
+    print(f"Metashape OK : {Metashape.app.version}")
 except Exception as e:
     METASHAPE_OK = False
-    print(f"⚠️  Metashape non disponible : {e}")
+    print(f"Metashape non disponible : {e}")
 
 # ================================================================
-# VÉRIFICATION GPU
+# VERIFICATION GPU
 # ================================================================
-print(f"\n🎮 GPU       : {torch.cuda.is_available()}")
+print(f"\nGPU       : {torch.cuda.is_available()}")
 if torch.cuda.is_available():
     print(f"   Device    : {torch.cuda.get_device_name(0)}")
     print(f"   VRAM      : {round(torch.cuda.get_device_properties(0).total_memory / 1e9, 1)} Go")
@@ -92,16 +95,16 @@ os.makedirs(out_folder, exist_ok=True)
 
 ts = datetime.now().strftime('%Y-%m-%d')
 
-print(f"\n📋 Site      : {plot_id}")
+print(f"\nSite      : {plot_id}")
 print(f"   Ortho     : {ortho}")
 print(f"   Output    : {out_folder}")
 print(f"   SAM model : {model_type}")
 
 # ================================================================
-# ÉTAPE 1 — SAM passe fine (petits objets)
+# ETAPE 1 — SAM passe fine (petits objets)
 # ================================================================
 print("\n" + "="*50)
-print("ÉTAPE 1/6 — SAM passe fine (128×128)...")
+print("ETAPE 1/6 — SAM passe fine (128x128)...")
 print("="*50)
 
 sam = SamGeo(
@@ -110,7 +113,7 @@ sam = SamGeo(
     device='cuda:0',
     sam_kwargs={
         'points_per_side': 128,
-        'points_per_batch': 16,
+        'points_per_batch': 256,
         'pred_iou_thresh': 0.88,
         'stability_score_thresh': 0.94,
         'stability_score_offset': 1.0,
@@ -131,13 +134,13 @@ sam.generate(
     erosion_kernel=(3, 3),
     bound=100
 )
-print(f"✅ Passe fine terminée → {mask_1}")
+print(f"Passe fine terminee -> {mask_1}")
 
 # ================================================================
-# ÉTAPE 2 — SAM passe large (grands objets)
+# ETAPE 2 — SAM passe large (grands objets)
 # ================================================================
 print("\n" + "="*50)
-print("ÉTAPE 2/6 — SAM passe large (200×200)...")
+print("ETAPE 2/6 — SAM passe large (200x200)...")
 print("="*50)
 
 sam = SamGeo(
@@ -146,7 +149,7 @@ sam = SamGeo(
     device='cuda:0',
     sam_kwargs={
         'points_per_side': 200,
-        'points_per_batch': 8,
+        'points_per_batch': 128,
         'pred_iou_thresh': 0.88,
         'stability_score_thresh': 0.94,
         'stability_score_offset': 1.0,
@@ -167,27 +170,24 @@ sam.generate(
     erosion_kernel=(3, 3),
     bound=200
 )
-print(f"✅ Passe large terminée → {mask_2}")
+print(f"Passe large terminee -> {mask_2}")
 
 # ================================================================
-# ÉTAPE 3 — Fusion GDAL (masque1 × masque2)
+# ETAPE 3 — Fusion GDAL (masque1 x masque2)
 # ================================================================
 print("\n" + "="*50)
-print("ÉTAPE 3/6 — Fusion des deux masques...")
+print("ETAPE 3/6 — Fusion des deux masques...")
 print("="*50)
 
 Combined_seg_tif = os.path.join(out_folder, f'{plot_id}_{ts}_combined.tif')
 
-# ⚠️ gdal_calc.py : chemin auto-détecté (Linux/Docker)
-#    Pas de chemin Windows hardcodé ici !
 import shutil
+import glob
+
 gdal_calc_bin = shutil.which("gdal_calc.py")
 if gdal_calc_bin is None:
-    # Fallback : chercher dans les osgeo_utils du Python courant
-    import glob
     candidates = glob.glob(
-        os.path.join(os.path.dirname(sys.executable),
-                     "**", "gdal_calc.py"),
+        os.path.join(os.path.dirname(sys.executable), "**", "gdal_calc.py"),
         recursive=True
     )
     if candidates:
@@ -195,7 +195,7 @@ if gdal_calc_bin is None:
     else:
         raise FileNotFoundError(
             "gdal_calc.py introuvable. "
-            "Vérifier l'installation de python3-gdal ou gdal-bin."
+            "Verifier l'installation de python3-gdal ou gdal-bin."
         )
 
 print(f"   gdal_calc.py : {gdal_calc_bin}")
@@ -208,25 +208,25 @@ gdal_calc_cmd = (
 )
 ret = os.system(gdal_calc_cmd)
 if ret != 0:
-    raise RuntimeError(f"gdal_calc.py a échoué (code {ret})")
-print(f"✅ Fusion terminée → {Combined_seg_tif}")
+    raise RuntimeError(f"gdal_calc.py a echoue (code {ret})")
+print(f"Fusion terminee -> {Combined_seg_tif}")
 
 # ================================================================
-# ÉTAPE 4 — Vectorisation (raster → polygones)
+# ETAPE 4 — Vectorisation (raster -> polygones)
 # ================================================================
 print("\n" + "="*50)
-print("ÉTAPE 4/6 — Vectorisation en polygones...")
+print("ETAPE 4/6 — Vectorisation en polygones...")
 print("="*50)
 
 Combined_seg_gpkg = os.path.join(out_folder, f'{plot_id}_{ts}_combined.gpkg')
 sam.tiff_to_gpkg(Combined_seg_tif, Combined_seg_gpkg, simplify_tolerance=None)
-print(f"✅ Vectorisation terminée → {Combined_seg_gpkg}")
+print(f"Vectorisation terminee -> {Combined_seg_gpkg}")
 
 # ================================================================
-# ÉTAPE 5 — Filtrage segments
+# ETAPE 5 — Filtrage segments
 # ================================================================
 print("\n" + "="*50)
-print("ÉTAPE 5/6 — Filtrage segments...")
+print("ETAPE 5/6 — Filtrage segments...")
 print("="*50)
 
 SEG_shp = os.path.join(out_folder, f'{plot_id}_{ts}_SEG.shp')
@@ -236,13 +236,13 @@ PTS_csv = os.path.join(out_folder, f'{plot_id}_{ts}_PTS.csv')
 segments_df_filtered, segments_pts_df = Filter_segments(
     Combined_seg_gpkg, SEG_shp, PTS_shp, PTS_csv
 )
-print("✅ Filtrage terminé")
+print("Filtrage termine")
 
 # ================================================================
-# ÉTAPE 6 — Grille hexagonale
+# ETAPE 6 — Grille hexagonale
 # ================================================================
 print("\n" + "="*50)
-print("ÉTAPE 6/6 — Grille hexagonale...")
+print("ETAPE 6/6 — Grille hexagonale...")
 print("="*50)
 
 full_grid    = os.path.join(out_folder, f'{plot_id}_{ts}_grid_full.shp')
@@ -257,18 +257,24 @@ hexagird_union_shp, hexagrid_union_pts = hexagrid(
     clip_grid, hexagrid_seg,
     hexagrid_pts, hexagrid_csv
 )
-print("✅ Hexagrid terminé")
+print("Hexagrid termine")
 
 # ================================================================
-# ÉTAPE 7 — Liaison Metashape (optionnelle)
+# ETAPE 7 — Liaison Metashape (optionnelle)
 # ================================================================
 if METASHAPE_OK:
     print("\n" + "="*50)
-    print("ÉTAPE 7/7 — Liaison Metashape...")
+    print("ETAPE 7/7 — Liaison Metashape...")
     print("="*50)
     try:
+        # Securite supplementaire : s'assurer que monitor_interval est bien
+        # a 0 juste avant l'appel Metashape (deja fait au demarrage mais
+        # certains imports intermediaires peuvent le reinitialiser)
+        _tqdm_module.tqdm.monitor_interval = 0
+
         from RB_fcn_part1 import camera_point_from_segment_centerPoint
         OutputPath = os.path.join(out_folder, plot_id + '_{}.csv')
+
         camera_uv = camera_point_from_segment_centerPoint(
             MetashapeProject_path,
             Chunk_number,
@@ -276,28 +282,30 @@ if METASHAPE_OK:
             OutputPath,
             hexagrid_csv
         )
-        print("✅ Metashape terminé")
+        print("Metashape termine")
+
     except Exception as e:
-        print(f"⚠️  Erreur Metashape : {e}")
+        print(f"Erreur Metashape etape 7 : {e}")
+        print("Les resultats SAM (etapes 1-6) sont complets et utilisables")
 else:
-    print("\n⚠️  ÉTAPE 7 ignorée — Metashape non disponible")
-    print("   → Les résultats de segmentation sont complets !")
+    print("\nETAPE 7 ignoree — Metashape non disponible")
+    print("   -> Les resultats de segmentation sont complets !")
 
 # ================================================================
-# RÉSUMÉ FINAL
+# RESUME FINAL
 # ================================================================
 gdf = gpd.read_file(SEG_shp)
 
 print("\n" + "="*50)
-print("🎉 RAPIDBENTHOS PART 1 TERMINÉ !")
+print("RAPIDBENTHOS PART 1 TERMINE !")
 print("="*50)
-print(f"\n📁 Résultats dans : {out_folder}")
-print(f"   🖼️  mask1        : {os.path.basename(mask_1)}")
-print(f"   🖼️  mask2        : {os.path.basename(mask_2)}")
-print(f"   🖼️  combined     : {os.path.basename(Combined_seg_tif)}")
-print(f"   📐  polygones    : {os.path.basename(Combined_seg_gpkg)}")
-print(f"   📐  SEG filtré   : {os.path.basename(SEG_shp)}")
-print(f"   📊  hexagrid CSV : {os.path.basename(hexagrid_csv)}")
-print(f"\n📊 Polygones détectés  : {len(gdf)}")
-print(f"   Surface moyenne    : {gdf.geometry.area.mean():.4f} m²")
-print(f"\n💡 Ouvre {Combined_seg_gpkg} dans QGIS !")
+print(f"\nResultats dans : {out_folder}")
+print(f"   mask1        : {os.path.basename(mask_1)}")
+print(f"   mask2        : {os.path.basename(mask_2)}")
+print(f"   combined     : {os.path.basename(Combined_seg_tif)}")
+print(f"   polygones    : {os.path.basename(Combined_seg_gpkg)}")
+print(f"   SEG filtre   : {os.path.basename(SEG_shp)}")
+print(f"   hexagrid CSV : {os.path.basename(hexagrid_csv)}")
+print(f"\nPolygones detectes  : {len(gdf)}")
+print(f"   Surface moyenne    : {gdf.geometry.area.mean():.4f} m2")
+print(f"\nOuvre {Combined_seg_gpkg} dans QGIS !")

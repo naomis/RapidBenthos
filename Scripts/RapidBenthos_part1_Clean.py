@@ -59,13 +59,13 @@ ts = timestamp()
 # ============================================
 # ENTRÉES
 # ============================================
-ortho      = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\R1_reoriented\R1_reoriented.tif"
-out_folder = r"C:\Users\CMBU\Desktop\RapidBenthos\R1_reoriented" 
-plot_id    = "R1_reoriented"
+ortho      = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\M7\M7_0326.tif"
+out_folder = r"C:\Users\CMBU\Desktop\RapidBenthos\M7 V2" 
+plot_id    = "m7"
 
-MetashapeProject_path = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\R1_reoriented\R1_reoriented_RB.psx"
+MetashapeProject_path = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\M7\M7_0326.psx"
 Chunk_number = 0
-PhotoPath    = r"\\Creo34-nas\CREO\241275_ENVIR_EXXONMOBIL_MOZAMBIQUE\DATA\PSM\RAW\R1"
+PhotoPath    = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\M7\M7_imgs"
 
 os.makedirs(out_folder, exist_ok=True)
 print("=" * 50)
@@ -92,8 +92,8 @@ sam = SamGeo(
     checkpoint= r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_l_0b3195.pth",
     device='cuda:0',
     sam_kwargs={
-        'points_per_side': 64,
-        'points_per_batch': 128,
+        'points_per_side': 128,
+        'points_per_batch': 16,
         'pred_iou_thresh': 0.88,
         'stability_score_thresh': 0.94,
         'stability_score_offset': 1.0,
@@ -126,8 +126,8 @@ sam = SamGeo(
     checkpoint= r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_l_0b3195.pth",
     device='cuda:0',
     sam_kwargs={
-        'points_per_side': 32,
-        'points_per_batch': 128,
+        'points_per_side': 200,
+        'points_per_batch': 8,
         'pred_iou_thresh': 0.88,
         'stability_score_thresh': 0.94,
         'stability_score_offset': 1.0,
