@@ -45,7 +45,7 @@ services:
       # Logs → /app/logs
       - ${LOG_PATH}:/app/logs:rw
       # Python scripts (editable without rebuild)
-      #- ./Scripts:/app/Scripts:ro
+      - ./Scripts:/app/Scripts:ro
       # Site config
       - ./config.yaml:/app/config.yaml:ro
 

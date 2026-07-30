@@ -16,11 +16,11 @@ sys.path.append(r"C:\Users\Public\Desktop\RapidBenthos")
 from RB_fcn_part1 import timestamp, convert_time, CameraStats, Point3D
 
 # ─── CONFIG ────────────────────────────────────────────────────────────────────
-MetashapeProject_path = r"\\Creo34-nas\CREO\241275_ENVIR_EXXONMOBIL_MOZAMBIQUE\DATA\PSM\PROCESS\M7_0326.psx"
+MetashapeProject_path = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\M7_Reoriented\M7_reoriented_RB.psx"
 Chunk_number          = 0
-PhotoPath = r"\\Creo34-nas\CREO\241275_ENVIR_EXXONMOBIL_MOZAMBIQUE\DATA\PSM\RAW\M7"
-hexagrid_csv = r"C:\Users\Public\Desktop\RapidBenthos\M7\tuiles_resultats\hex_pts_31tuiles_uid.csv"
-OutputPath   = r"C:\Users\Public\Desktop\RapidBenthos\M7\tuiles_resultats\M7_31tuiles_uid_{}_camera_UV.csv"
+PhotoPath = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\M7_Reoriented\M7_imgs"
+hexagrid_csv = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\outputs\M7_Reoriented\M7_EPSG32737_reoriented & 5mm\M7Reoriented2026-06-12_hex_pts.csv"
+OutputPath   = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\outputs\M7_Reoriented\M7_EPSG32737_reoriented & 5mm\test meta"
 # ───────────────────────────────────────────────────────────────────────────────
 
 print("=" * 60)

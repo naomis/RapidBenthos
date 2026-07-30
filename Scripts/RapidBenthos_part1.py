@@ -113,7 +113,7 @@ sam = SamGeo(
     device='cuda:0',
     sam_kwargs={
         'points_per_side': 128,
-        'points_per_batch': 256,
+        'points_per_batch': 16,
         'pred_iou_thresh': 0.88,
         'stability_score_thresh': 0.94,
         'stability_score_offset': 1.0,
@@ -149,7 +149,7 @@ sam = SamGeo(
     device='cuda:0',
     sam_kwargs={
         'points_per_side': 200,
-        'points_per_batch': 128,
+        'points_per_batch': 8,
         'pred_iou_thresh': 0.88,
         'stability_score_thresh': 0.94,
         'stability_score_offset': 1.0,

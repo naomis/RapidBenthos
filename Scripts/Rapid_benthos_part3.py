@@ -1,26 +1,26 @@
 from RB_fcn_part3 import Select_class_ReefCloud_pts, format_percent_cover, stack_catplot, rgb_to_hex, ColonyLevel_Segments
 import matplotlib.pyplot as plt
-RB_centroid_csv = r"C:\Users\Public\Desktop\RapidBenthos\M7\tuiles_resultats\hex_pts_13tuiles.csv"
+RB_centroid_csv = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\recap desktop\RapidBenthos_Data\outputs\M7_Reoriented\M7_EPSG32737_reoriented_5mm\M7_reoriented5mm.csv"
 
-RC_csv = r"C:\Users\CMBU\Desktop\dense_inference\results\SAM_points\M7_13tuiles_2026-03-19_14-24-11_camera_UV\M7_13tuiles_2026-03-19_14-24-11_camera_UV_2026-03-19_16-32-17.csv"
-
-label_file = r"C:\Users\Public\Desktop\RapidBenthos\label_set_M7.csv"
+ 
 
 
 # ============================================================
 # INPUTS
 # ============================================================
-RB_centroid_csv = r"C:\Users\Public\Desktop\RapidBenthos\M7\tuiles_resultats\hex_pts_31tuiles_uid.csv"
+RB_centroid_csv = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\recap desktop\RapidBenthos_Data\outputs\M7_Reoriented\M7_EPSG32737_reoriented_5mm\M7_reoriented5mm.csv"
 
-RC_csv = r"C:\Users\CMBU\Desktop\dense_inference\results\SAM_points\M7_31tuiles_uid_2026-03-23_14-17-37_camera_UV\M7_31tuiles_uid_2026-03-23_14-17-37_camera_UV_2026-03-24_09-38-32.csv"
+RC_csv = r"C:\Users\CMBU\Desktop\dense_inference\results\SAM_points\M7_reoriented5mm\M7_reoriented5mm_2026-06-29_14-33-10.csv"
 
-polygon_file = r"C:\Users\Public\Desktop\RapidBenthos\M7\tuiles_resultats\hex_seg_31tuiles_uid.shp"
+label_file = r"C:\Users\CMBU\Desktop\RapidBenthos\label_set_M7_compatible.csv"
 
-label_polygon_seg       = r"C:\Users\Public\Desktop\RapidBenthos\M7\PART3_31tuiles\M7_labeled_segments.shp"
-label_poygon_csv        = r"C:\Users\Public\Desktop\RapidBenthos\M7\PART3_31tuiles\M7_labeled_segments.csv"
-PercentCover            = r"C:\Users\Public\Desktop\RapidBenthos\M7\PART3_31tuiles\M7_percent_cover.csv"
-out_fig                 = r"C:\Users\Public\Desktop\RapidBenthos\M7\PART3_31tuiles\M7_community_composition.png"
-ColonyLevelSegments_shp = r"C:\Users\Public\Desktop\RapidBenthos\M7\PART3_31tuiles\M7_colony_segments.shp"
+polygon_file = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\recap desktop\RapidBenthos_Data\outputs\M7_Reoriented\M7_EPSG32737_reoriented_5mm\M7Reoriented2026-06-12_hex_seg.shp"
+
+label_polygon_seg       = r"C:\Users\CMBU\Desktop\RapidBenthos\M7 reo\M75mm_labeled_segments.shp"
+label_poygon_csv        = r"C:\Users\CMBU\Desktop\RapidBenthos\M7 reo\M75mm_labeled_segments.csv"
+PercentCover            = r"C:\Users\CMBU\Desktop\RapidBenthos\M7 reo\M75mm_percent_cover.csv"
+out_fig                 = r"C:\Users\CMBU\Desktop\RapidBenthos\M7 reo\M75mm_community_composition.png"
+ColonyLevelSegments_shp = r"C:\Users\CMBU\Desktop\RapidBenthos\M7 reo\M75mm_colony_segments.shp"
 # ============================================================
 # OBLIGATOIRE SUR WINDOWS pour multiprocessing
 # ============================================================

@@ -28,7 +28,25 @@ for p in [
 # ============================================
 # IMPORTS
 # ============================================
+# ============================================
+# FIX GLOBAL — NMS device mismatch (segment_anything)
+# À placer AVANT "from samgeo import SamGeo"
+# ============================================
 import torch
+import torchvision.ops.boxes as _tv_boxes
+
+_original_batched_nms = _tv_boxes.batched_nms
+
+def _patched_batched_nms(boxes, scores, idxs, iou_threshold):
+    # Force tous les tenseurs sur le même device que "boxes"
+    device = boxes.device
+    boxes  = boxes.to(device)
+    scores = scores.to(device)
+    idxs   = idxs.to(device)
+    return _original_batched_nms(boxes, scores, idxs, iou_threshold)
+
+_tv_boxes.batched_nms = _patched_batched_nms
+# ============================================
 print("GPU :", torch.cuda.is_available())
 import sys
 try:
@@ -59,13 +77,13 @@ ts = timestamp()
 # ============================================
 # ENTRÉES
 # ============================================
-ortho      = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\M7\M7_0326.tif"
-out_folder = r"C:\Users\CMBU\Desktop\RapidBenthos\M7 V2" 
-plot_id    = "m7"
+ortho      = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\DATA\R1\R1_EPSG32737_reoriented.tif"
+out_folder = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\Outputs RapidBenthos etape1\outputs\R1_Reoriented\R1_EPSG32737_reoriented"
+plot_id    = "R1_reo"
 
-MetashapeProject_path = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\M7\M7_0326.psx"
+MetashapeProject_path = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\DATA\PROCESS\R1_reoriented_RB.psx"
 Chunk_number = 0
-PhotoPath    = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\M7\M7_imgs"
+PhotoPath    = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\Data\R1"
 
 os.makedirs(out_folder, exist_ok=True)
 print("=" * 50)
@@ -92,8 +110,8 @@ sam = SamGeo(
     checkpoint= r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_l_0b3195.pth",
     device='cuda:0',
     sam_kwargs={
-        'points_per_side': 128,
-        'points_per_batch': 16,
+        'points_per_side': 64,
+        'points_per_batch': 128,
         'pred_iou_thresh': 0.88,
         'stability_score_thresh': 0.94,
         'stability_score_offset': 1.0,
@@ -126,8 +144,8 @@ sam = SamGeo(
     checkpoint= r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_l_0b3195.pth",
     device='cuda:0',
     sam_kwargs={
-        'points_per_side': 200,
-        'points_per_batch': 8,
+        'points_per_side': 32,
+        'points_per_batch': 128,
         'pred_iou_thresh': 0.88,
         'stability_score_thresh': 0.94,
         'stability_score_offset': 1.0,
@@ -158,12 +176,23 @@ print("\n ÉTAPE 3/6 — Fusion des deux masques...")
 dir_path = r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\osgeo_utils"
 Combined_seg_tif = os.path.join(out_folder, f'{plot_id}{ts}_combined.tif')
 
-gdal_calc_str = 'python {0} -A {1} -B {2} --outfile={3} --calc="A*B" --type=Float32 --hideNoData'
-gdal_calc_process = gdal_calc_str.format(
-    os.path.join(dir_path, "gdal_calc.py"),
-    mask_1, mask_2, Combined_seg_tif
+import subprocess
+
+gdal_calc = os.path.join(dir_path, "gdal_calc.py")
+
+subprocess.run(
+    [
+        "python",
+        gdal_calc,
+        "-A", mask_1,
+        "-B", mask_2,
+        "--outfile", Combined_seg_tif,
+        "--calc=A*B",
+        "--type=Float32",
+        "--hideNoData",
+    ],
+    check=True
 )
-os.system(gdal_calc_process)
 print("✅ Fusion terminée →", Combined_seg_tif)
 
 # ============================================

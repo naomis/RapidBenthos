@@ -3,9 +3,9 @@
 # ================================================================
 
 site:
-  plot_id:    "M7_test"
+  plot_id:    "M7"
   # Ortho mounted from DATA_PATH in .env
-  ortho:      "/app/data/M7_test_small.tif"
+  ortho:      "/app/data/M7 tuiles.3.tif"
   # Outputs written to OUTPUT_PATH in .env
   out_folder: "/app/outputs"
 

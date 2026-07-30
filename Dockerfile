@@ -17,7 +17,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     GDAL_DATA=/usr/share/gdal \
     PROJ_LIB=/usr/share/proj \
     OMP_NUM_THREADS=8 \
-    PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512
+    PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:512 \
+    GDAL_CACHEMAX=4096 \
+    GDAL_NUM_THREADS=ALL_CPUS
 
 # ================================================================
 # STEP 1 — System dependencies
@@ -150,7 +152,10 @@ RUN pip install --no-cache-dir \
     python-dotenv \
     psutil \
     coloredlogs
-
+# STEP 7b — Dask pour parallélisation GeoPandas
+RUN pip install --no-cache-dir \
+    dask==2024.2.0 \
+    dask-geopandas==0.3.1
 # ================================================================
 # STEP 8 — Verify gdal_calc.py
 # ================================================================
