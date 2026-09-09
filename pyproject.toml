@@ -1,0 +1,49 @@
+[project]
+name = "rapidbenthos"
+version = "0.1.0"
+description = "Automated segmentation and multi-view classification of coral reef communities"
+readme = "ReadMe.md"
+requires-python = ">=3.10,<3.14"
+dependencies = [
+    "numpy",
+    "pandas",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
+    "tqdm",
+    "multiprocess",
+    "opencv-python-headless",
+    "Pillow",
+    "PyYAML",
+    "pyproj",
+    "shapely",
+    "segment-anything-py",
+    "segment-geospatial[samgeo2]",
+    "metashape",
+    "dotenv",
+    "fiona",
+    "gdal==3.6.2",
+]
+
+[project.optional-dependencies]
+gpu = ["torch>=2.0,<2.11.0", "torchvision>=0.15,<0.27.0"]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cu128" }]
+torchvision = [{ index = "pytorch-cu128" }]
+metashape = [
+    { path = "./dist/metashape-2.3.2-cp39.cp310.cp311.cp312.cp313-abi3-linux_x86_64.whl", marker = "sys_platform == 'linux' and platform_machine == 'x86_64'" },
+    { path = "./dist/metashape-2.3.2-cp39.cp310.cp311.cp312.cp313-none-win_amd64.whl", marker = "sys_platform == 'win32' and platform_machine == 'AMD64'" },
+]
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+exclude = ["data*", "assets*", "dist*", "Scripts*"]
