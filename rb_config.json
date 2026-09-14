@@ -1,0 +1,15 @@
+{
+  "ortho": "C:/Users/CMBU/Desktop/RapidBenthos_Data/M7/M7_test_small.tif",
+  "out_dir": "C:/Users/CMBU/Desktop/RapidBenthos_Data/outputs/M7",
+  "plot_id": "SITE_07",
+  "sam_ckpt": "C:/Users/CMBU/Desktop/RapidBenthos_Data/checkpoints/sam_vit_h_4b8939.pth",
+  "sam_model": "vit_h",
+  "gpu": "1",
+  "pts_fine": "128",
+  "pts_large": "200",
+  "min_area": "1600",
+  "hex_size": "0.05",
+  "ms_project": "C:/Users/CMBU/Desktop/RapidBenthos_Data/M7/M7_0326.psx",
+  "ms_chunk": "0",
+  "ms_photos": "C:/Users/CMBU/Desktop/RapidBenthos_Data/M7/M7_imgs"
+}

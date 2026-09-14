@@ -217,3 +217,23 @@ Si ce travail vous est utile dans vos recherches, merci de citer l'article corre
 ## Remerciements
 
 Cette recherche a bénéficié du soutien du Reef Restoration and Adaptation Program, du partenariat entre le gouvernement australien, le Great Barrier Reef Foundation, l'Université James Cook et l'Université du Queensland. Les auteurs reconnaissent également les peuples autochtones et leurs liens culturels et écologiques avec les zones étudiées.
+
+
+## Pour installer les dépendances sous Windows avec uv (sans conda)
+
+Installer les composants de build visual studio C++ / Visual C++ redistribuables etc.
+Installer gdal via osgeo4w sans oublier les headers et vérifier l'identité de version de gdal entre pyproject.toml ou uv.lock et celle de osgeo4w
+Ensuite pour que uv puisse trouver les headers 
+```
+(rapidbenthos) PS C:\Users\COVE\Git\RapidBenthos> $env:INCLUDE = "C:\OSGeo4W\include;$env:INCLUDE"
+(rapidbenthos) PS C:\Users\COVE\Git\RapidBenthos> $env:LIB = "C:\OSGeo4W\lib;$env:LIB"
+(rapidbenthos) PS C:\Users\COVE\Git\RapidBenthos> $env:PATH = "C:\OSGeo4W\bin;$env:PATH"
+(rapidbenthos) PS C:\Users\COVE\Git\RapidBenthos>
+(rapidbenthos) PS C:\Users\COVE\Git\RapidBenthos> uv sync --all-extras
+```
+
+et pour lancer
+
+```
+uv run RapidBenthos_UI_White.py
+```

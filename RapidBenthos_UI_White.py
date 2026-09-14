@@ -39,8 +39,8 @@ FONT_MONO  = ("Consolas", 9)
 # ─── CHEMINS ──────────────────────────────────────────────────────────────────
 BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "rb_config.json")
-LOGO_PATH   = os.path.join(BASE_DIR, "creo.png")   # logo header (avec texte)
-ICON_PATH   = os.path.join(BASE_DIR, "rapidbenthos_icon.ico")   # icône fenêtre/taskbar
+LOGO_PATH   = os.path.join(BASE_DIR,"assets", "creo.png")   # logo header (avec texte)
+ICON_PATH   = os.path.join(BASE_DIR,"assets", "rapidbenthos_icon.ico")   # icône fenêtre/taskbar
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
