@@ -4,49 +4,54 @@ Interface graphique pour le pipeline RapidBenthos
 Thème clair professionnel — identité visuelle CREOCEAN
 """
 
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox, scrolledtext
-import subprocess
-import threading
-import os
-import sys
 import json
+import os
+import subprocess
+import sys
+import threading
+import tkinter as tk
 from datetime import datetime
 from pathlib import Path
+from tkinter import filedialog, messagebox, scrolledtext, ttk
+
 from PIL import Image, ImageTk
 
 # ─── PALETTE — Thème clair professionnel (identité CREOCEAN) ──────────────────
-BG         = "#f4f6f9"   # fond général (gris très clair)
-BG2        = "#ffffff"   # panneaux / cartes
-BG3        = "#eef1f6"   # champs de saisie / zones secondaires
-HEADER_BG  = "#ffffff"   # header
-ACCENT     = "#2f5d8a"   # bleu CREOCEAN (logo)
-ACCENT2    = "#6b5b95"   # mauve/violet (logo)
-ACCENT3    = "#a4607a"   # rosé secondaire (logo)
-TEXT       = "#1c2230"   # texte principal (presque noir)
-TEXT_DIM   = "#6b7280"   # texte secondaire
-BORDER     = "#d7dce4"
-SUCCESS    = "#1f9d55"
-WARNING    = "#b8860b"
-ERROR      = "#c0392b"
-CONSOLE_BG = "#1c2230"   # la console reste sombre (lisibilité logs type terminal)
+BG = "#f4f6f9"  # fond général (gris très clair)
+BG2 = "#ffffff"  # panneaux / cartes
+BG3 = "#eef1f6"  # champs de saisie / zones secondaires
+HEADER_BG = "#ffffff"  # header
+ACCENT = "#2f5d8a"  # bleu CREOCEAN (logo)
+ACCENT2 = "#6b5b95"  # mauve/violet (logo)
+ACCENT3 = "#a4607a"  # rosé secondaire (logo)
+TEXT = "#1c2230"  # texte principal (presque noir)
+TEXT_DIM = "#6b7280"  # texte secondaire
+BORDER = "#d7dce4"
+SUCCESS = "#1f9d55"
+WARNING = "#b8860b"
+ERROR = "#c0392b"
+CONSOLE_BG = "#1c2230"  # la console reste sombre (lisibilité logs type terminal)
 CONSOLE_FG = "#d7e3f0"
-FONT_MAIN  = ("Segoe UI", 10)
+FONT_MAIN = ("Segoe UI", 10)
 FONT_TITLE = ("Segoe UI Semibold", 11)
-FONT_HEAD  = ("Segoe UI Bold", 13)
-FONT_MONO  = ("Consolas", 9)
+FONT_HEAD = ("Segoe UI Bold", 13)
+FONT_MONO = ("Consolas", 9)
 
 # ─── CHEMINS ──────────────────────────────────────────────────────────────────
-BASE_DIR    = os.path.dirname(os.path.abspath(__file__))
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 CONFIG_FILE = os.path.join(BASE_DIR, "rb_config.json")
-LOGO_PATH   = os.path.join(BASE_DIR,"assets", "creo.png")   # logo header (avec texte)
-ICON_PATH   = os.path.join(BASE_DIR,"assets", "rapidbenthos_icon.ico")   # icône fenêtre/taskbar
+LOGO_PATH = os.path.join(BASE_DIR, "assets", "creo.png")  # logo header (avec texte)
+ICON_PATH = os.path.join(
+    BASE_DIR, "assets", "rapidbenthos_icon.ico"
+)  # icône fenêtre/taskbar
+
 
 def load_config():
     if os.path.exists(CONFIG_FILE):
         with open(CONFIG_FILE, "r", encoding="utf-8") as f:
             return json.load(f)
     return {}
+
 
 def save_config(cfg):
     with open(CONFIG_FILE, "w", encoding="utf-8") as f:
@@ -55,29 +60,54 @@ def save_config(cfg):
 
 # ─── WIDGETS UTILITAIRES ──────────────────────────────────────────────────────
 
+
 class FileRow(tk.Frame):
     """Ligne : label + entry + bouton parcourir"""
-    def __init__(self, parent, label, mode="file", exts=None, config_key=None, cfg=None, **kwargs):
+
+    def __init__(
+        self, parent, label, mode="file", exts=None, config_key=None, cfg=None, **kwargs
+    ):
         super().__init__(parent, bg=BG2, **kwargs)
-        self.mode       = mode
-        self.exts       = exts or []
+        self.mode = mode
+        self.exts = exts or []
         self.config_key = config_key
-        self.cfg        = cfg or {}
+        self.cfg = cfg or {}
 
-        tk.Label(self, text=label, bg=BG2, fg=TEXT_DIM, font=FONT_MAIN,
-                 width=28, anchor="w").pack(side="left", padx=(0, 8))
+        tk.Label(
+            self, text=label, bg=BG2, fg=TEXT_DIM, font=FONT_MAIN, width=28, anchor="w"
+        ).pack(side="left", padx=(0, 8))
 
-        self.var = tk.StringVar(value=self.cfg.get(config_key, "") if config_key else "")
-        entry = tk.Entry(self, textvariable=self.var, bg=BG3, fg=TEXT,
-                         insertbackground=ACCENT, relief="flat",
-                         font=FONT_MAIN, bd=0, highlightthickness=1,
-                         highlightbackground=BORDER, highlightcolor=ACCENT)
+        self.var = tk.StringVar(
+            value=self.cfg.get(config_key, "") if config_key else ""
+        )
+        entry = tk.Entry(
+            self,
+            textvariable=self.var,
+            bg=BG3,
+            fg=TEXT,
+            insertbackground=ACCENT,
+            relief="flat",
+            font=FONT_MAIN,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=BORDER,
+            highlightcolor=ACCENT,
+        )
         entry.pack(side="left", fill="x", expand=True, ipady=5, padx=(0, 6))
 
-        btn = tk.Button(self, text="…", bg=BG3, fg=ACCENT, font=("Segoe UI", 10, "bold"),
-                        relief="flat", cursor="hand2", width=3,
-                        activebackground=ACCENT, activeforeground="#ffffff",
-                        command=self._browse)
+        btn = tk.Button(
+            self,
+            text="…",
+            bg=BG3,
+            fg=ACCENT,
+            font=("Segoe UI", 10, "bold"),
+            relief="flat",
+            cursor="hand2",
+            width=3,
+            activebackground=ACCENT,
+            activeforeground="#ffffff",
+            command=self._browse,
+        )
         btn.pack(side="left")
 
     def _browse(self):
@@ -106,15 +136,28 @@ class FileRow(tk.Frame):
 
 class ParamRow(tk.Frame):
     """Ligne : label + entry simple (valeur texte)"""
+
     def __init__(self, parent, label, default="", config_key=None, cfg=None, **kwargs):
         super().__init__(parent, bg=BG2, **kwargs)
-        tk.Label(self, text=label, bg=BG2, fg=TEXT_DIM, font=FONT_MAIN,
-                 width=28, anchor="w").pack(side="left", padx=(0, 8))
-        self.var = tk.StringVar(value=cfg.get(config_key, default) if (cfg and config_key) else default)
-        entry = tk.Entry(self, textvariable=self.var, bg=BG3, fg=TEXT,
-                         insertbackground=ACCENT, relief="flat",
-                         font=FONT_MAIN, bd=0, highlightthickness=1,
-                         highlightbackground=BORDER, highlightcolor=ACCENT)
+        tk.Label(
+            self, text=label, bg=BG2, fg=TEXT_DIM, font=FONT_MAIN, width=28, anchor="w"
+        ).pack(side="left", padx=(0, 8))
+        self.var = tk.StringVar(
+            value=cfg.get(config_key, default) if (cfg and config_key) else default
+        )
+        entry = tk.Entry(
+            self,
+            textvariable=self.var,
+            bg=BG3,
+            fg=TEXT,
+            insertbackground=ACCENT,
+            relief="flat",
+            font=FONT_MAIN,
+            bd=0,
+            highlightthickness=1,
+            highlightbackground=BORDER,
+            highlightcolor=ACCENT,
+        )
         entry.pack(side="left", fill="x", expand=True, ipady=5)
         self.config_key = config_key
 
@@ -127,12 +170,14 @@ class ParamRow(tk.Frame):
 
 class SectionLabel(tk.Frame):
     """Titre de section avec petite barre verticale colorée (look pro / dashboard)"""
+
     def __init__(self, parent, text, **kwargs):
         super().__init__(parent, bg=BG2, **kwargs)
         bar = tk.Frame(self, bg=ACCENT, width=3)
         bar.pack(side="left", fill="y", padx=(0, 8))
-        tk.Label(self, text=text, bg=BG2, fg=ACCENT,
-                 font=FONT_TITLE, anchor="w").pack(side="left", pady=2)
+        tk.Label(self, text=text, bg=BG2, fg=ACCENT, font=FONT_TITLE, anchor="w").pack(
+            side="left", pady=2
+        )
 
 
 class Divider(tk.Frame):
@@ -142,63 +187,105 @@ class Divider(tk.Frame):
 
 class RunButton(tk.Button):
     def __init__(self, parent, text, command, **kwargs):
-        super().__init__(parent, text=text, command=command,
-                         bg=ACCENT, fg="#ffffff", font=("Segoe UI Bold", 10),
-                         relief="flat", cursor="hand2", padx=22, pady=9,
-                         activebackground=ACCENT2, activeforeground="#ffffff",
-                         bd=0, **kwargs)
+        super().__init__(
+            parent,
+            text=text,
+            command=command,
+            bg=ACCENT,
+            fg="#ffffff",
+            font=("Segoe UI Bold", 10),
+            relief="flat",
+            cursor="hand2",
+            padx=22,
+            pady=9,
+            activebackground=ACCENT2,
+            activeforeground="#ffffff",
+            bd=0,
+            **kwargs,
+        )
         self.bind("<Enter>", lambda e: self.config(bg=ACCENT2))
         self.bind("<Leave>", lambda e: self.config(bg=ACCENT))
 
 
 class Console(tk.Frame):
     """Zone de logs avec barre de progression et bouton Stop (reste en thème sombre type terminal)"""
+
     def __init__(self, parent, **kwargs):
         super().__init__(parent, bg=CONSOLE_BG, **kwargs)
         self._proc = None
 
         header = tk.Frame(self, bg="#151a24", pady=6)
         header.pack(fill="x")
-        tk.Label(header, text="  ▶  Console", bg="#151a24", fg="#9fb3c8",
-                 font=FONT_TITLE).pack(side="left")
+        tk.Label(
+            header, text="  ▶  Console", bg="#151a24", fg="#9fb3c8", font=FONT_TITLE
+        ).pack(side="left")
 
         # Bouton Effacer
-        tk.Button(header, text="Effacer", bg="#151a24", fg="#9fb3c8",
-                  font=("Segoe UI", 9), relief="flat", cursor="hand2",
-                  command=self.clear).pack(side="right", padx=8)
+        tk.Button(
+            header,
+            text="Effacer",
+            bg="#151a24",
+            fg="#9fb3c8",
+            font=("Segoe UI", 9),
+            relief="flat",
+            cursor="hand2",
+            command=self.clear,
+        ).pack(side="right", padx=8)
 
         # Bouton Stop
         self.stop_btn = tk.Button(
-            header, text="⏹ Stop", bg="#151a24", fg=ERROR,
-            font=("Segoe UI Semibold", 9), relief="flat", cursor="hand2",
-            padx=8, state="disabled",
-            activebackground=ERROR, activeforeground="#ffffff",
-            command=self.stop
+            header,
+            text="⏹ Stop",
+            bg="#151a24",
+            fg=ERROR,
+            font=("Segoe UI Semibold", 9),
+            relief="flat",
+            cursor="hand2",
+            padx=8,
+            state="disabled",
+            activebackground=ERROR,
+            activeforeground="#ffffff",
+            command=self.stop,
         )
         self.stop_btn.pack(side="right", padx=4)
 
         self.text = scrolledtext.ScrolledText(
-            self, bg="#11151d", fg=CONSOLE_FG, font=FONT_MONO,
-            relief="flat", bd=0, state="disabled",
-            selectbackground=ACCENT2, wrap="word"
+            self,
+            bg="#11151d",
+            fg=CONSOLE_FG,
+            font=FONT_MONO,
+            relief="flat",
+            bd=0,
+            state="disabled",
+            selectbackground=ACCENT2,
+            wrap="word",
         )
         self.text.pack(fill="both", expand=True)
 
-        self.text.tag_config("info",    foreground=CONSOLE_FG)
+        self.text.tag_config("info", foreground=CONSOLE_FG)
         self.text.tag_config("success", foreground="#4ade80")
         self.text.tag_config("warning", foreground="#fbbf24")
-        self.text.tag_config("error",   foreground="#f87171")
-        self.text.tag_config("accent",  foreground="#8aa6c9")
-        self.text.tag_config("dim",     foreground="#5b6678")
+        self.text.tag_config("error", foreground="#f87171")
+        self.text.tag_config("accent", foreground="#8aa6c9")
+        self.text.tag_config("dim", foreground="#5b6678")
 
         # Barre de progression
         self.progress_frame = tk.Frame(self, bg=CONSOLE_BG)
         self.progress_frame.pack(fill="x", pady=(4, 0))
-        self.progress_label = tk.Label(self.progress_frame, text="", bg=CONSOLE_BG,
-                                       fg="#5b6678", font=("Segoe UI", 9))
+        self.progress_label = tk.Label(
+            self.progress_frame,
+            text="",
+            bg=CONSOLE_BG,
+            fg="#5b6678",
+            font=("Segoe UI", 9),
+        )
         self.progress_label.pack(side="left", padx=6)
-        self.progress = ttk.Progressbar(self.progress_frame, mode="indeterminate",
-                                        length=200, style="Console.Horizontal.TProgressbar")
+        self.progress = ttk.Progressbar(
+            self.progress_frame,
+            mode="indeterminate",
+            length=200,
+            style="Console.Horizontal.TProgressbar",
+        )
         self.progress.pack(side="right", padx=6, pady=2)
 
     def set_process(self, proc):
@@ -214,6 +301,7 @@ class Console(tk.Frame):
                     self._proc.terminate()
                 else:
                     import signal
+
                     os.killpg(os.getpgid(self._proc.pid), signal.SIGTERM)
                 try:
                     self._proc.wait(timeout=3)
@@ -250,31 +338,37 @@ class Console(tk.Frame):
 
 # ─── TABS ─────────────────────────────────────────────────────────────────────
 
+
 def scrollable_frame(parent):
     """Retourne (outer_frame, inner_frame) avec scrollbar verticale"""
     outer = tk.Frame(parent, bg=BG2)
     canvas = tk.Canvas(outer, bg=BG2, highlightthickness=0, bd=0)
     sb = ttk.Scrollbar(outer, orient="vertical", command=canvas.yview)
     inner = tk.Frame(canvas, bg=BG2)
-    inner.bind("<Configure>",
-               lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+    inner.bind(
+        "<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+    )
     canvas.create_window((0, 0), window=inner, anchor="nw")
     canvas.configure(yscrollcommand=sb.set)
     canvas.pack(side="left", fill="both", expand=True)
     sb.pack(side="right", fill="y")
-    canvas.bind_all("<MouseWheel>",
-                    lambda e: canvas.yview_scroll(int(-1*(e.delta/120)), "units"))
+    canvas.bind_all(
+        "<MouseWheel>",
+        lambda e: canvas.yview_scroll(int(-1 * (e.delta / 120)), "units"),
+    )
     return outer, inner
 
 
 # ─── TAB 1 : Part 1 — Orthomosaïque ──────────────────────────────────────────
 
+
 class Tab1(tk.Frame):
     """Part 1 — Orthomosaïque unique (SAM + Metashape intégré)"""
+
     def __init__(self, parent, console, cfg):
         super().__init__(parent, bg=BG2)
         self.console = console
-        self.cfg     = cfg
+        self.cfg = cfg
         self._build()
 
     def _build(self):
@@ -286,70 +380,133 @@ class Tab1(tk.Frame):
         SectionLabel(f, "📥  Entrées").pack(**pad, pady=(14, 3))
         Divider(f).pack(**pad_std)
 
-        self.ortho = FileRow(f, "Orthomosaïque (.tif)", mode="file",
-                             exts=[".tif", ".tiff"], config_key="ortho", cfg=self.cfg)
+        self.ortho = FileRow(
+            f,
+            "Orthomosaïque (.tif)",
+            mode="file",
+            exts=[".tif", ".tiff"],
+            config_key="ortho",
+            cfg=self.cfg,
+        )
         self.ortho.pack(**pad_std)
 
-        self.out_dir = FileRow(f, "Dossier de sortie", mode="dir",
-                               config_key="out_dir", cfg=self.cfg)
+        self.out_dir = FileRow(
+            f, "Dossier de sortie", mode="dir", config_key="out_dir", cfg=self.cfg
+        )
         self.out_dir.pack(**pad_std)
 
-        self.plot_id = ParamRow(f, "Identifiant du site (plot_id)",
-                                default="SITE_01", config_key="plot_id", cfg=self.cfg)
+        self.plot_id = ParamRow(
+            f,
+            "Identifiant du site (plot_id)",
+            default="SITE_01",
+            config_key="plot_id",
+            cfg=self.cfg,
+        )
         self.plot_id.pack(**pad_std)
 
         SectionLabel(f, "🤖  Modèle SAM").pack(**pad, pady=(14, 3))
         Divider(f).pack(**pad_std)
 
-        self.sam_ckpt = FileRow(f, "Checkpoint SAM (.pth)", mode="file",
-                                exts=[".pth"], config_key="sam_ckpt", cfg=self.cfg)
+        self.sam_ckpt = FileRow(
+            f,
+            "Checkpoint SAM (.pth)",
+            mode="file",
+            exts=[".pth"],
+            config_key="sam_ckpt",
+            cfg=self.cfg,
+        )
         self.sam_ckpt.pack(**pad_std)
 
-        self.sam_model = ParamRow(f, "Type de modèle", default="vit_h",
-                                  config_key="sam_model", cfg=self.cfg)
+        self.sam_model = ParamRow(
+            f, "Type de modèle", default="vit_h", config_key="sam_model", cfg=self.cfg
+        )
         self.sam_model.pack(**pad_std)
 
         SectionLabel(f, "📐  Paramètres SAM").pack(**pad, pady=(14, 3))
         Divider(f).pack(**pad_std)
 
-        self.pts_fine = ParamRow(f, "Points/side — passe fine", default="64",
-                                 config_key="pts_fine", cfg=self.cfg)
+        self.pts_fine = ParamRow(
+            f,
+            "Points/side — passe fine",
+            default="64",
+            config_key="pts_fine",
+            cfg=self.cfg,
+        )
         self.pts_fine.pack(**pad_std)
-        self.pts_large = ParamRow(f, "Points/side — passe large", default="32",
-                                  config_key="pts_large", cfg=self.cfg)
+        self.pts_large = ParamRow(
+            f,
+            "Points/side — passe large",
+            default="32",
+            config_key="pts_large",
+            cfg=self.cfg,
+        )
         self.pts_large.pack(**pad_std)
-        self.min_area = ParamRow(f, "Surface min. masque (px²)", default="1600",
-                                 config_key="min_area", cfg=self.cfg)
+        self.min_area = ParamRow(
+            f,
+            "Surface min. masque (px²)",
+            default="1600",
+            config_key="min_area",
+            cfg=self.cfg,
+        )
         self.min_area.pack(**pad_std)
-        self.hex_size = ParamRow(f, "Taille hexagonale (m)", default="0.05",
-                                 config_key="hex_size", cfg=self.cfg)
+        self.hex_size = ParamRow(
+            f,
+            "Taille hexagonale (m)",
+            default="0.05",
+            config_key="hex_size",
+            cfg=self.cfg,
+        )
         self.hex_size.pack(**pad_std)
 
         SectionLabel(f, "🗺️  Metashape").pack(**pad, pady=(14, 3))
         Divider(f).pack(**pad_std)
 
-        self.ms_project = FileRow(f, "Projet Metashape (.psx)", mode="file",
-                                  exts=[".psx"], config_key="ms_project", cfg=self.cfg)
+        self.ms_project = FileRow(
+            f,
+            "Projet Metashape (.psx)",
+            mode="file",
+            exts=[".psx"],
+            config_key="ms_project",
+            cfg=self.cfg,
+        )
         self.ms_project.pack(**pad_std)
-        self.ms_chunk = ParamRow(f, "Numéro de chunk", default="0",
-                                 config_key="ms_chunk", cfg=self.cfg)
+        self.ms_chunk = ParamRow(
+            f, "Numéro de chunk", default="0", config_key="ms_chunk", cfg=self.cfg
+        )
         self.ms_chunk.pack(**pad_std)
-        self.ms_photos = FileRow(f, "Dossier des photos", mode="dir",
-                                 config_key="ms_photos", cfg=self.cfg)
+        self.ms_photos = FileRow(
+            f, "Dossier des photos", mode="dir", config_key="ms_photos", cfg=self.cfg
+        )
         self.ms_photos.pack(**pad_std)
 
         info = tk.Frame(f, bg=BG3, padx=12, pady=10)
         info.pack(**pad, pady=(10, 4))
-        tk.Label(info,
-                 text="ℹ️  L'étape Metashape (liaison UV) est exécutée automatiquement à la fin de Part 1 si un projet .psx est renseigné.",
-                 bg=BG3, fg=TEXT_DIM, font=("Segoe UI", 9), wraplength=550, justify="left").pack()
+        tk.Label(
+            info,
+            text="ℹ️  L'étape Metashape (liaison UV) est exécutée automatiquement à la fin de Part 1 si un projet .psx est renseigné.",
+            bg=BG3,
+            fg=TEXT_DIM,
+            font=("Segoe UI", 9),
+            wraplength=550,
+            justify="left",
+        ).pack()
 
         btn_frame = tk.Frame(f, bg=BG2)
         btn_frame.pack(fill="x", padx=16, pady=(20, 16))
         RunButton(btn_frame, "▶  Lancer Part 1", self._run).pack(side="left")
-        tk.Button(btn_frame, text="💾 Sauver config", command=self._save,
-                  bg=BG3, fg=TEXT_DIM, font=FONT_MAIN, relief="flat",
-                  cursor="hand2", padx=14, pady=8, bd=0).pack(side="left", padx=10)
+        tk.Button(
+            btn_frame,
+            text="💾 Sauver config",
+            command=self._save,
+            bg=BG3,
+            fg=TEXT_DIM,
+            font=FONT_MAIN,
+            relief="flat",
+            cursor="hand2",
+            padx=14,
+            pady=8,
+            bd=0,
+        ).pack(side="left", padx=10)
 
     def _save(self):
         self.cfg.update(self._collect())
@@ -358,18 +515,18 @@ class Tab1(tk.Frame):
 
     def _collect(self):
         return {
-            "ortho":      self.ortho.get(),
-            "out_dir":    self.out_dir.get(),
-            "plot_id":    self.plot_id.get(),
-            "sam_ckpt":   self.sam_ckpt.get(),
-            "sam_model":  self.sam_model.get(),
-            "pts_fine":   self.pts_fine.get(),
-            "pts_large":  self.pts_large.get(),
-            "min_area":   self.min_area.get(),
-            "hex_size":   self.hex_size.get(),
+            "ortho": self.ortho.get(),
+            "out_dir": self.out_dir.get(),
+            "plot_id": self.plot_id.get(),
+            "sam_ckpt": self.sam_ckpt.get(),
+            "sam_model": self.sam_model.get(),
+            "pts_fine": self.pts_fine.get(),
+            "pts_large": self.pts_large.get(),
+            "min_area": self.min_area.get(),
+            "hex_size": self.hex_size.get(),
             "ms_project": self.ms_project.get(),
-            "ms_chunk":   self.ms_chunk.get(),
-            "ms_photos":  self.ms_photos.get(),
+            "ms_chunk": self.ms_chunk.get(),
+            "ms_photos": self.ms_photos.get(),
         }
 
     def _run(self):
@@ -396,12 +553,14 @@ class Tab1(tk.Frame):
 
 # ─── TAB 2 : Part 3 — Post-traitement ────────────────────────────────────────
 
+
 class Tab2(tk.Frame):
     """Part 3 — Post-traitement & résultats"""
+
     def __init__(self, parent, console, cfg):
         super().__init__(parent, bg=BG2)
         self.console = console
-        self.cfg     = cfg
+        self.cfg = cfg
         self._build()
 
     def _build(self):
@@ -413,52 +572,120 @@ class Tab2(tk.Frame):
         SectionLabel(f, "📥  Entrées Part 3").pack(**pad, pady=(14, 3))
         Divider(f).pack(**pad_std)
 
-        self.rb_csv = FileRow(f, "CSV centroïdes RB (hex_pts.csv)", mode="file",
-                              exts=[".csv"], config_key="p3_rb_csv", cfg=self.cfg)
+        self.rb_csv = FileRow(
+            f,
+            "CSV centroïdes RB (hex_pts.csv)",
+            mode="file",
+            exts=[".csv"],
+            config_key="p3_rb_csv",
+            cfg=self.cfg,
+        )
         self.rb_csv.pack(**pad_std)
-        self.rc_csv = FileRow(f, "CSV ReefCloud (dense_inference)", mode="file",
-                              exts=[".csv"], config_key="p3_rc_csv", cfg=self.cfg)
+        self.rc_csv = FileRow(
+            f,
+            "CSV ReefCloud (dense_inference)",
+            mode="file",
+            exts=[".csv"],
+            config_key="p3_rc_csv",
+            cfg=self.cfg,
+        )
         self.rc_csv.pack(**pad_std)
-        self.label_f = FileRow(f, "Fichier labels (.csv)", mode="file",
-                               exts=[".csv"], config_key="p3_label", cfg=self.cfg)
+        self.label_f = FileRow(
+            f,
+            "Fichier labels (.csv)",
+            mode="file",
+            exts=[".csv"],
+            config_key="p3_label",
+            cfg=self.cfg,
+        )
         self.label_f.pack(**pad_std)
-        self.poly_shp = FileRow(f, "Polygones segmentés (.shp)", mode="file",
-                                exts=[".shp"], config_key="p3_poly", cfg=self.cfg)
+        self.poly_shp = FileRow(
+            f,
+            "Polygones segmentés (.shp)",
+            mode="file",
+            exts=[".shp"],
+            config_key="p3_poly",
+            cfg=self.cfg,
+        )
         self.poly_shp.pack(**pad_std)
 
         SectionLabel(f, "📤  Sorties Part 3").pack(**pad, pady=(14, 3))
         Divider(f).pack(**pad_std)
 
-        self.out_seg = FileRow(f, "Segments classifiés (.shp)", mode="file",
-                               exts=[".shp"], config_key="p3_out_seg", cfg=self.cfg)
+        self.out_seg = FileRow(
+            f,
+            "Segments classifiés (.shp)",
+            mode="file",
+            exts=[".shp"],
+            config_key="p3_out_seg",
+            cfg=self.cfg,
+        )
         self.out_seg.pack(**pad_std)
-        self.out_csv2 = FileRow(f, "Résultat classif. (.csv)", mode="file",
-                                exts=[".csv"], config_key="p3_out_csv", cfg=self.cfg)
+        self.out_csv2 = FileRow(
+            f,
+            "Résultat classif. (.csv)",
+            mode="file",
+            exts=[".csv"],
+            config_key="p3_out_csv",
+            cfg=self.cfg,
+        )
         self.out_csv2.pack(**pad_std)
-        self.out_pct = FileRow(f, "Pourcentage couverture (.csv)", mode="file",
-                               exts=[".csv"], config_key="p3_out_pct", cfg=self.cfg)
+        self.out_pct = FileRow(
+            f,
+            "Pourcentage couverture (.csv)",
+            mode="file",
+            exts=[".csv"],
+            config_key="p3_out_pct",
+            cfg=self.cfg,
+        )
         self.out_pct.pack(**pad_std)
-        self.out_fig2 = FileRow(f, "Graphique communauté (.png)", mode="file",
-                                exts=[".png"], config_key="p3_out_fig", cfg=self.cfg)
+        self.out_fig2 = FileRow(
+            f,
+            "Graphique communauté (.png)",
+            mode="file",
+            exts=[".png"],
+            config_key="p3_out_fig",
+            cfg=self.cfg,
+        )
         self.out_fig2.pack(**pad_std)
-        self.out_col = FileRow(f, "Segments colonies (.shp)", mode="file",
-                               exts=[".shp"], config_key="p3_out_col", cfg=self.cfg)
+        self.out_col = FileRow(
+            f,
+            "Segments colonies (.shp)",
+            mode="file",
+            exts=[".shp"],
+            config_key="p3_out_col",
+            cfg=self.cfg,
+        )
         self.out_col.pack(**pad_std)
 
         SectionLabel(f, "🔧  Ordre des classes").pack(**pad, pady=(14, 3))
         Divider(f).pack(**pad_std)
 
-        self.class_order = ParamRow(f, "Ordre (séparé par virgules)",
+        self.class_order = ParamRow(
+            f,
+            "Ordre (séparé par virgules)",
             default="Acropora Corymbose (ACO),Acropora,Branching_non_acropora,Massive,Foliose,Encrusting,Columnar,Fire_Coral,Fungiidae,Soft_Coral,Sponge,Algae,Abiotic_substrate,Mobile_Biota,Markers,Unidentifiable",
-            config_key="p3_class_order", cfg=self.cfg)
+            config_key="p3_class_order",
+            cfg=self.cfg,
+        )
         self.class_order.pack(**pad_std)
 
         btn_frame = tk.Frame(f, bg=BG2)
         btn_frame.pack(fill="x", padx=16, pady=(20, 16))
         RunButton(btn_frame, "▶  Lancer Part 3", self._run).pack(side="left")
-        tk.Button(btn_frame, text="💾 Sauver config", command=self._save,
-                  bg=BG3, fg=TEXT_DIM, font=FONT_MAIN, relief="flat",
-                  cursor="hand2", padx=14, pady=8, bd=0).pack(side="left", padx=10)
+        tk.Button(
+            btn_frame,
+            text="💾 Sauver config",
+            command=self._save,
+            bg=BG3,
+            fg=TEXT_DIM,
+            font=FONT_MAIN,
+            relief="flat",
+            cursor="hand2",
+            padx=14,
+            pady=8,
+            bd=0,
+        ).pack(side="left", padx=10)
 
     def _save(self):
         self.cfg.update(self._collect())
@@ -467,28 +694,36 @@ class Tab2(tk.Frame):
 
     def _collect(self):
         return {
-            "p3_rb_csv":      self.rb_csv.get(),
-            "p3_rc_csv":      self.rc_csv.get(),
-            "p3_label":       self.label_f.get(),
-            "p3_poly":        self.poly_shp.get(),
-            "p3_out_seg":     self.out_seg.get(),
-            "p3_out_csv":     self.out_csv2.get(),
-            "p3_out_pct":     self.out_pct.get(),
-            "p3_out_fig":     self.out_fig2.get(),
-            "p3_out_col":     self.out_col.get(),
+            "p3_rb_csv": self.rb_csv.get(),
+            "p3_rc_csv": self.rc_csv.get(),
+            "p3_label": self.label_f.get(),
+            "p3_poly": self.poly_shp.get(),
+            "p3_out_seg": self.out_seg.get(),
+            "p3_out_csv": self.out_csv2.get(),
+            "p3_out_pct": self.out_pct.get(),
+            "p3_out_fig": self.out_fig2.get(),
+            "p3_out_col": self.out_col.get(),
             "p3_class_order": self.class_order.get(),
         }
 
     def _run(self):
         p = self._collect()
         errors = []
-        for k, label in [("p3_rb_csv", "CSV centroïdes"), ("p3_rc_csv", "CSV ReefCloud"),
-                         ("p3_label", "Labels"), ("p3_poly", "Polygones")]:
+        for k, label in [
+            ("p3_rb_csv", "CSV centroïdes"),
+            ("p3_rc_csv", "CSV ReefCloud"),
+            ("p3_label", "Labels"),
+            ("p3_poly", "Polygones"),
+        ]:
             if not p[k] or not os.path.exists(p[k]):
                 errors.append(f"{label} introuvable")
-        for k, label in [("p3_out_seg", "Shp sortie"), ("p3_out_csv", "CSV sortie"),
-                         ("p3_out_pct", "Percent Cover"), ("p3_out_fig", "Figure"),
-                         ("p3_out_col", "Colonies")]:
+        for k, label in [
+            ("p3_out_seg", "Shp sortie"),
+            ("p3_out_csv", "CSV sortie"),
+            ("p3_out_pct", "Percent Cover"),
+            ("p3_out_fig", "Figure"),
+            ("p3_out_col", "Colonies"),
+        ]:
             if not p[k]:
                 errors.append(f"Chemin de sortie requis : {label}")
         if errors:
@@ -502,6 +737,7 @@ class Tab2(tk.Frame):
 
 
 # ─── GÉNÉRATEURS DE SCRIPTS ───────────────────────────────────────────────────
+
 
 def _generate_part1_script(p):
     return f'''
@@ -542,6 +778,12 @@ except Exception as _e:
 
 from samgeo import SamGeo
 import geopandas as gpd
+
+if sys.platform == "win32":
+    osgeo4w_bin = r"C:\OSGeo4W\bin"
+    if os.path.isdir(osgeo4w_bin):
+        os.add_dll_directory(osgeo4w_bin)
+
 from osgeo import gdal
 from datetime import datetime
 from RB_fcn_part1 import Filter_segments, hexagrid
@@ -712,12 +954,14 @@ if __name__ == '__main__':
 
 # ─── EXÉCUTION ASYNC ──────────────────────────────────────────────────────────
 
+
 def _run_script_async(script_code, console):
     """Écrit le script dans un fichier tmp puis l'exécute dans un thread"""
     import tempfile
-    tmp = tempfile.NamedTemporaryFile(suffix=".py", delete=False,
-                                     mode="w", encoding="utf-8",
-                                     dir=BASE_DIR)
+
+    tmp = tempfile.NamedTemporaryFile(
+        suffix=".py", delete=False, mode="w", encoding="utf-8", dir=BASE_DIR
+    )
     tmp.write(script_code)
     tmp.close()
 
@@ -731,10 +975,13 @@ def _run_script_async(script_code, console):
 
             proc = subprocess.Popen(
                 [sys.executable, tmp.name],
-                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                text=True, encoding="utf-8", errors="replace",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
                 cwd=BASE_DIR,
-                **kwargs
+                **kwargs,
             )
             console.set_process(proc)
 
@@ -746,7 +993,10 @@ def _run_script_async(script_code, console):
                     break
                 tag = "info"
                 low = line.lower()
-                if any(k in low for k in ["done", "ok", "terminé", "terminee", "succès", "🎉"]):
+                if any(
+                    k in low
+                    for k in ["done", "ok", "terminé", "terminee", "succès", "🎉"]
+                ):
                     tag = "success"
                 elif any(k in low for k in ["erreur", "error", "fail"]):
                     tag = "error"
@@ -781,6 +1031,7 @@ def _run_script_async(script_code, console):
 
 # ─── FENÊTRE PRINCIPALE ───────────────────────────────────────────────────────
 
+
 class App(tk.Tk):
     def __init__(self):
         super().__init__()
@@ -804,9 +1055,15 @@ class App(tk.Tk):
             print(f"Icône non chargée : {e}")
 
     def _on_close(self):
-        if hasattr(self, 'console') and self.console._proc and self.console._proc.poll() is None:
-            if messagebox.askyesno("Traitement en cours",
-                                   "Un traitement est en cours.\nVoulez-vous l'arrêter et quitter ?"):
+        if (
+            hasattr(self, "console")
+            and self.console._proc
+            and self.console._proc.poll() is None
+        ):
+            if messagebox.askyesno(
+                "Traitement en cours",
+                "Un traitement est en cours.\nVoulez-vous l'arrêter et quitter ?",
+            ):
                 self.console.stop()
                 self.destroy()
         else:
@@ -815,20 +1072,43 @@ class App(tk.Tk):
     def _style(self):
         style = ttk.Style(self)
         style.theme_use("clam")
-        style.configure("TNotebook",     background=BG,  borderwidth=0)
-        style.configure("TNotebook.Tab", background=BG,  foreground=TEXT_DIM,
-                         font=FONT_TITLE, padding=[18, 10], borderwidth=0)
-        style.map("TNotebook.Tab",
-                  background=[("selected", BG2), ("active", BG3)],
-                  foreground=[("selected", ACCENT), ("active", TEXT)])
-        style.configure("TScrollbar", background=BG3, troughcolor=BG,
-                         bordercolor=BG, arrowcolor=TEXT_DIM)
-        style.configure("Horizontal.TProgressbar",
-                         troughcolor=BG3, background=ACCENT,
-                         bordercolor=BG, lightcolor=ACCENT, darkcolor=ACCENT2)
-        style.configure("Console.Horizontal.TProgressbar",
-                         troughcolor="#151a24", background=ACCENT,
-                         bordercolor="#151a24", lightcolor=ACCENT, darkcolor=ACCENT2)
+        style.configure("TNotebook", background=BG, borderwidth=0)
+        style.configure(
+            "TNotebook.Tab",
+            background=BG,
+            foreground=TEXT_DIM,
+            font=FONT_TITLE,
+            padding=[18, 10],
+            borderwidth=0,
+        )
+        style.map(
+            "TNotebook.Tab",
+            background=[("selected", BG2), ("active", BG3)],
+            foreground=[("selected", ACCENT), ("active", TEXT)],
+        )
+        style.configure(
+            "TScrollbar",
+            background=BG3,
+            troughcolor=BG,
+            bordercolor=BG,
+            arrowcolor=TEXT_DIM,
+        )
+        style.configure(
+            "Horizontal.TProgressbar",
+            troughcolor=BG3,
+            background=ACCENT,
+            bordercolor=BG,
+            lightcolor=ACCENT,
+            darkcolor=ACCENT2,
+        )
+        style.configure(
+            "Console.Horizontal.TProgressbar",
+            troughcolor="#151a24",
+            background=ACCENT,
+            bordercolor="#151a24",
+            lightcolor=ACCENT,
+            darkcolor=ACCENT2,
+        )
 
     def _build(self):
         # ── Header ──
@@ -853,7 +1133,9 @@ class App(tk.Tk):
                 logo_img = Image.open(LOGO_PATH).convert("RGBA")
                 logo_img.thumbnail((170, 60), Image.LANCZOS)
                 self.logo_tk = ImageTk.PhotoImage(logo_img)
-                tk.Label(title_frame, image=self.logo_tk, bg=HEADER_BG).pack(side="right", padx=(0, 4))
+                tk.Label(title_frame, image=self.logo_tk, bg=HEADER_BG).pack(
+                    side="right", padx=(0, 4)
+                )
             else:
                 self.console_warn_logo = True
         except Exception as e:
@@ -861,20 +1143,44 @@ class App(tk.Tk):
 
         title_text = tk.Frame(title_frame, bg=HEADER_BG)
         title_text.pack(side="left")
-        tk.Label(title_text, text="RapidBenthos", bg=HEADER_BG, fg=TEXT,
-                 font=("Segoe UI Bold", 22)).pack(side="left")
-        badge = tk.Label(title_text, text=" v2.2 ", bg=ACCENT, fg="#ffffff",
-                 font=("Segoe UI Bold", 8), padx=2, pady=1)
+        tk.Label(
+            title_text,
+            text="RapidBenthos",
+            bg=HEADER_BG,
+            fg=TEXT,
+            font=("Segoe UI Bold", 22),
+        ).pack(side="left")
+        badge = tk.Label(
+            title_text,
+            text=" v2.2 ",
+            bg=ACCENT,
+            fg="#ffffff",
+            font=("Segoe UI Bold", 8),
+            padx=2,
+            pady=1,
+        )
         badge.pack(side="left", padx=(10, 0), pady=(6, 0))
-        sub = tk.Label(header, text="Pipeline de traitement benthique — analyse automatisée d'orthomosaïques coralliennes",
-                 bg=HEADER_BG, fg=TEXT_DIM, font=("Segoe UI", 11))
+        sub = tk.Label(
+            header,
+            text="Pipeline de traitement benthique — analyse automatisée d'orthomosaïques coralliennes",
+            bg=HEADER_BG,
+            fg=TEXT_DIM,
+            font=("Segoe UI", 11),
+        )
         sub.pack(anchor="w", padx=24, pady=(0, 14))
 
         Divider(self).pack(fill="x")
 
         # ── PanedWindow ──
-        pane = tk.PanedWindow(self, orient="horizontal", bg=BG,
-                              sashwidth=4, sashrelief="flat", sashpad=0, handlesize=0)
+        pane = tk.PanedWindow(
+            self,
+            orient="horizontal",
+            bg=BG,
+            sashwidth=4,
+            sashrelief="flat",
+            sashpad=0,
+            handlesize=0,
+        )
         pane.pack(fill="both", expand=True)
 
         nb_frame = tk.Frame(pane, bg=BG2)
@@ -900,18 +1206,35 @@ class App(tk.Tk):
         status = tk.Frame(self, bg=BG2, pady=6)
         status.pack(fill="x", side="bottom")
         Divider(status).pack(fill="x", side="top")
-        tk.Label(status, text="  RapidBenthos Desktop UI  —  CREOCEAN · Environnement & océanographie",
-                 bg=BG2, fg=TEXT_DIM, font=("Segoe UI", 8)).pack(side="left", pady=(4,0))
-        tk.Label(status, text="Python " + sys.version.split()[0] + "  ",
-                 bg=BG2, fg=TEXT_DIM, font=("Segoe UI", 8)).pack(side="right", pady=(4,0))
+        tk.Label(
+            status,
+            text="  RapidBenthos Desktop UI  —  CREOCEAN · Environnement & océanographie",
+            bg=BG2,
+            fg=TEXT_DIM,
+            font=("Segoe UI", 8),
+        ).pack(side="left", pady=(4, 0))
+        tk.Label(
+            status,
+            text="Python " + sys.version.split()[0] + "  ",
+            bg=BG2,
+            fg=TEXT_DIM,
+            font=("Segoe UI", 8),
+        ).pack(side="right", pady=(4, 0))
 
         # ── Welcome ──
         self.console.log("Bienvenue dans RapidBenthos Desktop UI  v2.2", "accent")
-        self.console.log("Part 1 : SAM + Metashape (étape 7) intégrés en un seul lancement.", "info")
-        self.console.log("GPU détecté automatiquement — aucune sélection manuelle requise.", "info")
+        self.console.log(
+            "Part 1 : SAM + Metashape (étape 7) intégrés en un seul lancement.", "info"
+        )
+        self.console.log(
+            "GPU détecté automatiquement — aucune sélection manuelle requise.", "info"
+        )
         self.console.log("Utilisez ⏹ Stop pour interrompre à tout moment.", "dim")
         if self.console_warn_logo:
-            self.console.log(f"⚠️ Logo introuvable : {LOGO_PATH} (placez creo.png à côté du script)", "warning")
+            self.console.log(
+                f"⚠️ Logo introuvable : {LOGO_PATH} (placez creo.png à côté du script)",
+                "warning",
+            )
 
 
 if __name__ == "__main__":

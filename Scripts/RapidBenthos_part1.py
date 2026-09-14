@@ -22,32 +22,40 @@ import os
 import sys
 
 # CUDA
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
 
 # Fix tqdm (1/2) — desactiver le thread monitor AVANT tout import
 # Evite le crash "Fatal Python error: none_dealloc" lors de
 # l'interaction entre le monitor thread de tqdm et l'API Metashape
 import tqdm as _tqdm_module
+
 _tqdm_module.tqdm.monitor_interval = 0
 
 # Fix tqdm (2/2) — affichage Docker sans TTY
 # Via variable d'environnement : plus safe que monkey-patch
 # (le monkey-patch modifie __init__ globalement et interfere avec Metashape)
-os.environ.setdefault('TQDM_NCOLS', '100')
+os.environ.setdefault("TQDM_NCOLS", "100")
 
 # ================================================================
 # IMPORTS
 # ================================================================
+from datetime import datetime
+
+import cv2
+import numpy as np
 import torch
 import yaml
-import numpy as np
-import cv2
-from datetime import datetime
-from osgeo import gdal
+
+if sys.platform == "win32":
+    osgeo4w_bin = r"C:\OSGeo4W\bin"
+    if os.path.isdir(osgeo4w_bin):
+        os.add_dll_directory(osgeo4w_bin)
+
 import geopandas as gpd
 import pandas as pd
-from samgeo import SamGeo
+from osgeo import gdal
 from PIL import Image, ImageFile
+from samgeo import SamGeo
 
 Image.MAX_IMAGE_PIXELS = None
 ImageFile.LOAD_TRUNCATED_IMAGES = True
@@ -59,6 +67,7 @@ from RB_fcn_part1 import Filter_segments, hexagrid
 # Metashape est optionnel (licence requise)
 try:
     import Metashape
+
     METASHAPE_OK = True
     print(f"Metashape OK : {Metashape.app.version}")
 except Exception as e:
@@ -71,7 +80,9 @@ except Exception as e:
 print(f"\nGPU       : {torch.cuda.is_available()}")
 if torch.cuda.is_available():
     print(f"   Device    : {torch.cuda.get_device_name(0)}")
-    print(f"   VRAM      : {round(torch.cuda.get_device_properties(0).total_memory / 1e9, 1)} Go")
+    print(
+        f"   VRAM      : {round(torch.cuda.get_device_properties(0).total_memory / 1e9, 1)} Go"
+    )
 
 # ================================================================
 # LECTURE CONFIG
@@ -80,20 +91,20 @@ config_path = os.environ.get("CONFIG_PATH", "/app/config.yaml")
 with open(config_path, "r") as f:
     cfg = yaml.safe_load(f)
 
-ortho      = cfg["site"]["ortho"]
+ortho = cfg["site"]["ortho"]
 out_folder = cfg["site"]["out_folder"]
-plot_id    = cfg["site"]["plot_id"]
+plot_id = cfg["site"]["plot_id"]
 
 MetashapeProject_path = cfg["metashape"]["project_path"]
-Chunk_number          = cfg["metashape"]["chunk_number"]
-PhotoPath             = cfg["metashape"]["photo_path"]
+Chunk_number = cfg["metashape"]["chunk_number"]
+PhotoPath = cfg["metashape"]["photo_path"]
 
-checkpoint  = cfg["sam"]["checkpoint"]
-model_type  = cfg["sam"]["model_type"]
+checkpoint = cfg["sam"]["checkpoint"]
+model_type = cfg["sam"]["model_type"]
 
 os.makedirs(out_folder, exist_ok=True)
 
-ts = datetime.now().strftime('%Y-%m-%d')
+ts = datetime.now().strftime("%Y-%m-%d")
 
 print(f"\nSite      : {plot_id}")
 print(f"   Ortho     : {ortho}")
@@ -103,83 +114,85 @@ print(f"   SAM model : {model_type}")
 # ================================================================
 # ETAPE 1 — SAM passe fine (petits objets)
 # ================================================================
-print("\n" + "="*50)
+print("\n" + "=" * 50)
 print("ETAPE 1/6 — SAM passe fine (128x128)...")
-print("="*50)
+print("=" * 50)
 
 sam = SamGeo(
     model_type=model_type,
     checkpoint=checkpoint,
-    device='cuda:0',
+    device="cuda:0",
     sam_kwargs={
-        'points_per_side': 128,
-        'points_per_batch': 16,
-        'pred_iou_thresh': 0.88,
-        'stability_score_thresh': 0.94,
-        'stability_score_offset': 1.0,
-        'box_nms_thresh': 0.35,
-        'crop_n_layers': 0,
-        'crop_nms_thresh': 0.9,
-        'crop_n_points_downscale_factor': 1,
-        'min_mask_region_area': 1600,
-    }
+        "points_per_side": 128,
+        "points_per_batch": 16,
+        "pred_iou_thresh": 0.88,
+        "stability_score_thresh": 0.94,
+        "stability_score_offset": 1.0,
+        "box_nms_thresh": 0.35,
+        "crop_n_layers": 0,
+        "crop_nms_thresh": 0.9,
+        "crop_n_points_downscale_factor": 1,
+        "min_mask_region_area": 1600,
+    },
 )
 
-mask_1 = os.path.join(out_folder, f'{plot_id}_{ts}_mask1.tif')
+mask_1 = os.path.join(out_folder, f"{plot_id}_{ts}_mask1.tif")
 sam.generate(
-    ortho, mask_1,
+    ortho,
+    mask_1,
     batch=True,
     foreground=False,
     mask_multiplier=255,
     erosion_kernel=(3, 3),
-    bound=100
+    bound=100,
 )
 print(f"Passe fine terminee -> {mask_1}")
 
 # ================================================================
 # ETAPE 2 — SAM passe large (grands objets)
 # ================================================================
-print("\n" + "="*50)
+print("\n" + "=" * 50)
 print("ETAPE 2/6 — SAM passe large (200x200)...")
-print("="*50)
+print("=" * 50)
 
 sam = SamGeo(
     model_type=model_type,
     checkpoint=checkpoint,
-    device='cuda:0',
+    device="cuda:0",
     sam_kwargs={
-        'points_per_side': 200,
-        'points_per_batch': 8,
-        'pred_iou_thresh': 0.88,
-        'stability_score_thresh': 0.94,
-        'stability_score_offset': 1.0,
-        'box_nms_thresh': 0.35,
-        'crop_n_layers': 0,
-        'crop_nms_thresh': 0.9,
-        'crop_n_points_downscale_factor': 1,
-        'min_mask_region_area': 1600,
-    }
+        "points_per_side": 200,
+        "points_per_batch": 8,
+        "pred_iou_thresh": 0.88,
+        "stability_score_thresh": 0.94,
+        "stability_score_offset": 1.0,
+        "box_nms_thresh": 0.35,
+        "crop_n_layers": 0,
+        "crop_nms_thresh": 0.9,
+        "crop_n_points_downscale_factor": 1,
+        "min_mask_region_area": 1600,
+    },
 )
 
-mask_2 = os.path.join(out_folder, f'{plot_id}_{ts}_mask2.tif')
+mask_2 = os.path.join(out_folder, f"{plot_id}_{ts}_mask2.tif")
 sam.generate(
-    ortho, mask_2,
+    ortho,
+    mask_2,
     batch=True,
     foreground=False,
     mask_multiplier=255,
     erosion_kernel=(3, 3),
-    bound=200
+    bound=200,
 )
 print(f"Passe large terminee -> {mask_2}")
 
 # ================================================================
 # ETAPE 3 — Fusion GDAL (masque1 x masque2)
 # ================================================================
-print("\n" + "="*50)
+print("\n" + "=" * 50)
 print("ETAPE 3/6 — Fusion des deux masques...")
-print("="*50)
+print("=" * 50)
 
-Combined_seg_tif = os.path.join(out_folder, f'{plot_id}_{ts}_combined.tif')
+Combined_seg_tif = os.path.join(out_folder, f"{plot_id}_{ts}_combined.tif")
 
 import shutil
 import glob
@@ -188,7 +201,7 @@ gdal_calc_bin = shutil.which("gdal_calc.py")
 if gdal_calc_bin is None:
     candidates = glob.glob(
         os.path.join(os.path.dirname(sys.executable), "**", "gdal_calc.py"),
-        recursive=True
+        recursive=True,
     )
     if candidates:
         gdal_calc_bin = candidates[0]
@@ -214,24 +227,24 @@ print(f"Fusion terminee -> {Combined_seg_tif}")
 # ================================================================
 # ETAPE 4 — Vectorisation (raster -> polygones)
 # ================================================================
-print("\n" + "="*50)
+print("\n" + "=" * 50)
 print("ETAPE 4/6 — Vectorisation en polygones...")
-print("="*50)
+print("=" * 50)
 
-Combined_seg_gpkg = os.path.join(out_folder, f'{plot_id}_{ts}_combined.gpkg')
+Combined_seg_gpkg = os.path.join(out_folder, f"{plot_id}_{ts}_combined.gpkg")
 sam.tiff_to_gpkg(Combined_seg_tif, Combined_seg_gpkg, simplify_tolerance=None)
 print(f"Vectorisation terminee -> {Combined_seg_gpkg}")
 
 # ================================================================
 # ETAPE 5 — Filtrage segments
 # ================================================================
-print("\n" + "="*50)
+print("\n" + "=" * 50)
 print("ETAPE 5/6 — Filtrage segments...")
-print("="*50)
+print("=" * 50)
 
-SEG_shp = os.path.join(out_folder, f'{plot_id}_{ts}_SEG.shp')
-PTS_shp = os.path.join(out_folder, f'{plot_id}_{ts}_PTS.shp')
-PTS_csv = os.path.join(out_folder, f'{plot_id}_{ts}_PTS.csv')
+SEG_shp = os.path.join(out_folder, f"{plot_id}_{ts}_SEG.shp")
+PTS_shp = os.path.join(out_folder, f"{plot_id}_{ts}_PTS.shp")
+PTS_csv = os.path.join(out_folder, f"{plot_id}_{ts}_PTS.csv")
 
 segments_df_filtered, segments_pts_df = Filter_segments(
     Combined_seg_gpkg, SEG_shp, PTS_shp, PTS_csv
@@ -241,21 +254,18 @@ print("Filtrage termine")
 # ================================================================
 # ETAPE 6 — Grille hexagonale
 # ================================================================
-print("\n" + "="*50)
+print("\n" + "=" * 50)
 print("ETAPE 6/6 — Grille hexagonale...")
-print("="*50)
+print("=" * 50)
 
-full_grid    = os.path.join(out_folder, f'{plot_id}_{ts}_grid_full.shp')
-clip_grid    = os.path.join(out_folder, f'{plot_id}_{ts}_grid_clip.shp')
-hexagrid_seg = os.path.join(out_folder, f'{plot_id}_{ts}_hex_seg.shp')
-hexagrid_pts = os.path.join(out_folder, f'{plot_id}_{ts}_hex_pts.shp')
-hexagrid_csv = os.path.join(out_folder, f'{plot_id}_{ts}_hex_pts.csv')
+full_grid = os.path.join(out_folder, f"{plot_id}_{ts}_grid_full.shp")
+clip_grid = os.path.join(out_folder, f"{plot_id}_{ts}_grid_clip.shp")
+hexagrid_seg = os.path.join(out_folder, f"{plot_id}_{ts}_hex_seg.shp")
+hexagrid_pts = os.path.join(out_folder, f"{plot_id}_{ts}_hex_pts.shp")
+hexagrid_csv = os.path.join(out_folder, f"{plot_id}_{ts}_hex_pts.csv")
 
 hexagird_union_shp, hexagrid_union_pts = hexagrid(
-    ortho, 0.05,
-    full_grid, SEG_shp,
-    clip_grid, hexagrid_seg,
-    hexagrid_pts, hexagrid_csv
+    ortho, 0.05, full_grid, SEG_shp, clip_grid, hexagrid_seg, hexagrid_pts, hexagrid_csv
 )
 print("Hexagrid termine")
 
@@ -263,9 +273,9 @@ print("Hexagrid termine")
 # ETAPE 7 — Liaison Metashape (optionnelle)
 # ================================================================
 if METASHAPE_OK:
-    print("\n" + "="*50)
+    print("\n" + "=" * 50)
     print("ETAPE 7/7 — Liaison Metashape...")
-    print("="*50)
+    print("=" * 50)
     try:
         # Securite supplementaire : s'assurer que monitor_interval est bien
         # a 0 juste avant l'appel Metashape (deja fait au demarrage mais
@@ -273,14 +283,11 @@ if METASHAPE_OK:
         _tqdm_module.tqdm.monitor_interval = 0
 
         from RB_fcn_part1 import camera_point_from_segment_centerPoint
-        OutputPath = os.path.join(out_folder, plot_id + '_{}.csv')
+
+        OutputPath = os.path.join(out_folder, plot_id + "_{}.csv")
 
         camera_uv = camera_point_from_segment_centerPoint(
-            MetashapeProject_path,
-            Chunk_number,
-            PhotoPath,
-            OutputPath,
-            hexagrid_csv
+            MetashapeProject_path, Chunk_number, PhotoPath, OutputPath, hexagrid_csv
         )
         print("Metashape termine")
 
@@ -296,9 +303,9 @@ else:
 # ================================================================
 gdf = gpd.read_file(SEG_shp)
 
-print("\n" + "="*50)
+print("\n" + "=" * 50)
 print("RAPIDBENTHOS PART 1 TERMINE !")
-print("="*50)
+print("=" * 50)
 print(f"\nResultats dans : {out_folder}")
 print(f"   mask1        : {os.path.basename(mask_1)}")
 print(f"   mask2        : {os.path.basename(mask_2)}")

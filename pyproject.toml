@@ -22,7 +22,7 @@ dependencies = [
     "metashape",
     "dotenv",
     "fiona",
-    "gdal[numpy]>=3.13",
+    "gdal[numpy]",
 ]
 
 [project.optional-dependencies]

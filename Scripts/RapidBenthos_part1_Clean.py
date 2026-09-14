@@ -1,22 +1,38 @@
-import os, sys
-_dll = os.path.join(os.path.dirname(sys.executable), 'Library', 'bin')
-if hasattr(os, 'add_dll_directory') and os.path.exists(_dll):
-    os.add_dll_directory(_dll)
-os.environ['PATH'] = _dll + ';' + os.environ.get('PATH', '')
-os.environ['GDAL_DATA'] = os.path.join(os.path.dirname(sys.executable), 'Library', 'share', 'gdal')
-os.environ['PROJ_LIB'] = os.path.join(os.path.dirname(sys.executable), 'Library', 'share', 'proj')
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
-import os, sys
-_dll = os.path.join(os.path.dirname(sys.executable), 'Library', 'bin')
-if hasattr(os, 'add_dll_directory') and os.path.exists(_dll):
-    os.add_dll_directory(_dll)
-os.environ['PATH'] = _dll + ';' + os.environ.get('PATH', '')
-os.environ['GDAL_DATA'] = os.path.join(os.path.dirname(sys.executable), 'Library', 'share', 'gdal')
-os.environ['PROJ_LIB'] = os.path.join(os.path.dirname(sys.executable), 'Library', 'share', 'proj')
-# ============================================
-# FIX DLLs 
-# ============================================
 import os
+import sys
+
+_dll = os.path.join(os.path.dirname(sys.executable), "Library", "bin")
+if hasattr(os, "add_dll_directory") and os.path.exists(_dll):
+    os.add_dll_directory(_dll)
+os.environ["PATH"] = _dll + ";" + os.environ.get("PATH", "")
+os.environ["GDAL_DATA"] = os.path.join(
+    os.path.dirname(sys.executable), "Library", "share", "gdal"
+)
+os.environ["PROJ_LIB"] = os.path.join(
+    os.path.dirname(sys.executable), "Library", "share", "proj"
+)
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
+import os
+import sys
+
+_dll = os.path.join(os.path.dirname(sys.executable), "Library", "bin")
+if hasattr(os, "add_dll_directory") and os.path.exists(_dll):
+    os.add_dll_directory(_dll)
+os.environ["PATH"] = _dll + ";" + os.environ.get("PATH", "")
+os.environ["GDAL_DATA"] = os.path.join(
+    os.path.dirname(sys.executable), "Library", "share", "gdal"
+)
+os.environ["PROJ_LIB"] = os.path.join(
+    os.path.dirname(sys.executable), "Library", "share", "proj"
+)
+
+# ============================================
+# FIX DLLs
+# ============================================
+
+import os
+
 for p in [
     r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\torch\lib",
     r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\torch\bin",
@@ -37,20 +53,24 @@ import torchvision.ops.boxes as _tv_boxes
 
 _original_batched_nms = _tv_boxes.batched_nms
 
+
 def _patched_batched_nms(boxes, scores, idxs, iou_threshold):
     # Force tous les tenseurs sur le même device que "boxes"
     device = boxes.device
-    boxes  = boxes.to(device)
+    boxes = boxes.to(device)
     scores = scores.to(device)
-    idxs   = idxs.to(device)
+    idxs = idxs.to(device)
     return _original_batched_nms(boxes, scores, idxs, iou_threshold)
+
 
 _tv_boxes.batched_nms = _patched_batched_nms
 # ============================================
 print("GPU :", torch.cuda.is_available())
 import sys
+
 try:
     import Metashape
+
     METASHAPE_OK = True
     print("Metashape OK :", Metashape.app.version)
 except Exception as e:
@@ -59,31 +79,45 @@ except Exception as e:
 from samgeo import SamGeo
 import geopandas as gpd
 import pandas as pd
+
+if sys.platform == "win32":
+    osgeo4w_bin = r"C:\OSGeo4W\bin"
+    if os.path.isdir(osgeo4w_bin):
+        os.add_dll_directory(osgeo4w_bin)
+
 from osgeo import gdal
 import numpy as np
 import cv2
 from datetime import datetime
 from RB_fcn_part1 import Filter_segments, hexagrid
 from PIL import Image, ImageFile
+
 Image.MAX_IMAGE_PIXELS = None
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 
 def timestamp():
-    return datetime.now().strftime('%Y-%m-%d')
+    return datetime.now().strftime("%Y-%m-%d")
+
+
 ts = timestamp()
 
 # ============================================
 # ENTRÉES
 # ============================================
-ortho      = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\DATA\R1\R1_EPSG32737_reoriented.tif"
+ortho = (
+    r"\\Creo34-nas\creo\CTI_Detourgage-automatise\DATA\R1\R1_EPSG32737_reoriented.tif"
+)
 out_folder = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\Outputs RapidBenthos etape1\outputs\R1_Reoriented\R1_EPSG32737_reoriented"
-plot_id    = "R1_reo"
+plot_id = "R1_reo"
 
-MetashapeProject_path = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\DATA\PROCESS\R1_reoriented_RB.psx"
+MetashapeProject_path = (
+    r"\\Creo34-nas\creo\CTI_Detourgage-automatise\DATA\PROCESS\R1_reoriented_RB.psx"
+)
 Chunk_number = 0
-PhotoPath    = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\Data\R1"
+PhotoPath = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\Data\R1"
 
 os.makedirs(out_folder, exist_ok=True)
 print("=" * 50)
@@ -96,6 +130,7 @@ print("=" * 50)
 # VÉRIFICATION GPU
 # ============================================
 import torch
+
 print("GPU :", torch.cuda.is_available())
 print("Device :", torch.cuda.get_device_name(0))
 print("VRAM :", round(torch.cuda.get_device_properties(0).total_memory / 1e9, 1), "Go")
@@ -107,30 +142,31 @@ print("\n ÉTAPE 1/6 — SAM passe fine (128x128)...")
 
 sam = SamGeo(
     model_type="vit_l",
-    checkpoint= r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_l_0b3195.pth",
-    device='cuda:0',
+    checkpoint=r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_l_0b3195.pth",
+    device="cuda:0",
     sam_kwargs={
-        'points_per_side': 64,
-        'points_per_batch': 128,
-        'pred_iou_thresh': 0.88,
-        'stability_score_thresh': 0.94,
-        'stability_score_offset': 1.0,
-        'box_nms_thresh': 0.35,
-        'crop_n_layers': 0,
-        'crop_nms_thresh': 0.9,
-        'crop_n_points_downscale_factor': 1,
-        'min_mask_region_area': 1600,
-    }
+        "points_per_side": 64,
+        "points_per_batch": 128,
+        "pred_iou_thresh": 0.88,
+        "stability_score_thresh": 0.94,
+        "stability_score_offset": 1.0,
+        "box_nms_thresh": 0.35,
+        "crop_n_layers": 0,
+        "crop_nms_thresh": 0.9,
+        "crop_n_points_downscale_factor": 1,
+        "min_mask_region_area": 1600,
+    },
 )
 
-mask_1 = os.path.join(out_folder, f'{plot_id}{ts}_mask1.tif')
+mask_1 = os.path.join(out_folder, f"{plot_id}{ts}_mask1.tif")
 sam.generate(
-    ortho, mask_1,
+    ortho,
+    mask_1,
     batch=True,
     foreground=False,
     mask_multiplier=255,
     erosion_kernel=(3, 3),
-    bound=100
+    bound=100,
 )
 print("✅ Passe fine terminée →", mask_1)
 
@@ -141,30 +177,31 @@ print("\n ÉTAPE 2/6 — SAM passe large (200x200)...")
 
 sam = SamGeo(
     model_type="vit_l",
-    checkpoint= r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_l_0b3195.pth",
-    device='cuda:0',
+    checkpoint=r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_l_0b3195.pth",
+    device="cuda:0",
     sam_kwargs={
-        'points_per_side': 32,
-        'points_per_batch': 128,
-        'pred_iou_thresh': 0.88,
-        'stability_score_thresh': 0.94,
-        'stability_score_offset': 1.0,
-        'box_nms_thresh': 0.35,
-        'crop_n_layers': 0,
-        'crop_nms_thresh': 0.9,
-        'crop_n_points_downscale_factor': 1,
-        'min_mask_region_area': 1600,
-    }
+        "points_per_side": 32,
+        "points_per_batch": 128,
+        "pred_iou_thresh": 0.88,
+        "stability_score_thresh": 0.94,
+        "stability_score_offset": 1.0,
+        "box_nms_thresh": 0.35,
+        "crop_n_layers": 0,
+        "crop_nms_thresh": 0.9,
+        "crop_n_points_downscale_factor": 1,
+        "min_mask_region_area": 1600,
+    },
 )
 
-mask_2 = os.path.join(out_folder, f'{plot_id}{ts}_mask2.tif')
+mask_2 = os.path.join(out_folder, f"{plot_id}{ts}_mask2.tif")
 sam.generate(
-    ortho, mask_2,
+    ortho,
+    mask_2,
     batch=True,
     foreground=False,
     mask_multiplier=255,
     erosion_kernel=(3, 3),
-    bound=200
+    bound=200,
 )
 print("✅ Passe large terminée →", mask_2)
 
@@ -174,7 +211,7 @@ print("✅ Passe large terminée →", mask_2)
 print("\n ÉTAPE 3/6 — Fusion des deux masques...")
 
 dir_path = r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\osgeo_utils"
-Combined_seg_tif = os.path.join(out_folder, f'{plot_id}{ts}_combined.tif')
+Combined_seg_tif = os.path.join(out_folder, f"{plot_id}{ts}_combined.tif")
 
 import subprocess
 
@@ -184,14 +221,17 @@ subprocess.run(
     [
         "python",
         gdal_calc,
-        "-A", mask_1,
-        "-B", mask_2,
-        "--outfile", Combined_seg_tif,
+        "-A",
+        mask_1,
+        "-B",
+        mask_2,
+        "--outfile",
+        Combined_seg_tif,
         "--calc=A*B",
         "--type=Float32",
         "--hideNoData",
     ],
-    check=True
+    check=True,
 )
 print("✅ Fusion terminée →", Combined_seg_tif)
 
@@ -200,7 +240,7 @@ print("✅ Fusion terminée →", Combined_seg_tif)
 # ============================================
 print("\n ÉTAPE 4/6 — Vectorisation en polygones...")
 
-Combined_seg_gpkg = os.path.join(out_folder, f'{plot_id}{ts}_combined.gpkg')
+Combined_seg_gpkg = os.path.join(out_folder, f"{plot_id}{ts}_combined.gpkg")
 sam.tiff_to_gpkg(Combined_seg_tif, Combined_seg_gpkg, simplify_tolerance=None)
 print("✅ Vectorisation terminée →", Combined_seg_gpkg)
 
@@ -209,44 +249,39 @@ print("✅ Vectorisation terminée →", Combined_seg_gpkg)
 # ============================================
 print("\n ÉTAPE 5/6 — Filtrage segments...")
 
-SEG_shp = os.path.join(out_folder, f'{plot_id}{ts}_SEG.shp')
-PTS_shp = os.path.join(out_folder, f'{plot_id}{ts}_PTS.shp')
-PTS_csv = os.path.join(out_folder, f'{plot_id}{ts}_PTS.csv')
+SEG_shp = os.path.join(out_folder, f"{plot_id}{ts}_SEG.shp")
+PTS_shp = os.path.join(out_folder, f"{plot_id}{ts}_PTS.shp")
+PTS_csv = os.path.join(out_folder, f"{plot_id}{ts}_PTS.csv")
 
 segments_df_filtered, segments_pts_df = Filter_segments(
-    Combined_seg_gpkg, SEG_shp, PTS_shp, PTS_csv)
+    Combined_seg_gpkg, SEG_shp, PTS_shp, PTS_csv
+)
 print("✅ Filtrage terminé")
 
 print("\n ÉTAPE 6/6 — Grille hexagonale...")
 
-full_grid    = os.path.join(out_folder, f'{plot_id}{ts}_grid_full.shp')
-clip_grid    = os.path.join(out_folder, f'{plot_id}{ts}_grid_clip.shp')
-hexagrid_seg = os.path.join(out_folder, f'{plot_id}{ts}_hex_seg.shp')
-hexagrid_pts = os.path.join(out_folder, f'{plot_id}{ts}_hex_pts.shp')
-hexagrid_csv = os.path.join(out_folder, f'{plot_id}{ts}_hex_pts.csv')
+full_grid = os.path.join(out_folder, f"{plot_id}{ts}_grid_full.shp")
+clip_grid = os.path.join(out_folder, f"{plot_id}{ts}_grid_clip.shp")
+hexagrid_seg = os.path.join(out_folder, f"{plot_id}{ts}_hex_seg.shp")
+hexagrid_pts = os.path.join(out_folder, f"{plot_id}{ts}_hex_pts.shp")
+hexagrid_csv = os.path.join(out_folder, f"{plot_id}{ts}_hex_pts.csv")
 
 hexagird_union_shp, hexagrid_union_pts = hexagrid(
-    ortho, 0.05,
-    full_grid, SEG_shp,
-    clip_grid, hexagrid_seg,
-    hexagrid_pts, hexagrid_csv
+    ortho, 0.05, full_grid, SEG_shp, clip_grid, hexagrid_seg, hexagrid_pts, hexagrid_csv
 )
 print("✅ Hexagrid terminé")
 
 # ============================================
-# ÉTAPE 7 — Metashape 
+# ÉTAPE 7 — Metashape
 # ============================================
 if METASHAPE_OK:
     print("\n ÉTAPE 7/7 — Liaison Metashape...")
     try:
         from RB_fcn_part1 import camera_point_from_segment_centerPoint
-        OutputPath = os.path.join(out_folder, plot_id + '_{}.csv')
+
+        OutputPath = os.path.join(out_folder, plot_id + "_{}.csv")
         camera_uv = camera_point_from_segment_centerPoint(
-            MetashapeProject_path,
-            Chunk_number,
-            PhotoPath,
-            OutputPath,
-            hexagrid_csv
+            MetashapeProject_path, Chunk_number, PhotoPath, OutputPath, hexagrid_csv
         )
         print("✅ Metashape terminé")
     except Exception as e:
@@ -273,4 +308,3 @@ gdf = gpd.read_file(SEG_shp)
 print(f"\n📊 Polygones détectés : {len(gdf)}")
 print(f"   Surface moyenne   : {gdf.geometry.area.mean():.4f} m²")
 print(f"\n💡 Ouvre {Combined_seg_gpkg} dans QGIS !")
-
