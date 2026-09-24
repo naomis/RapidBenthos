@@ -1,42 +1,29 @@
-import os, sys
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(__file__))
+from RB_paths import get_venv_prefix, get_metashape_config, setup_dll_directories
+
+setup_dll_directories()
+
+prefix = get_venv_prefix()
+
+os.environ["PATH"] = str(prefix / "Library" / "bin") + ";" + os.environ.get("PATH", "")
+os.environ["GDAL_DATA"] = str(prefix / "Library" / "share" / "gdal")
+os.environ["PROJ_LIB"] = str(prefix / "Library" / "share" / "proj")
 
 # ============================================
-# FIX DLLs
+# CONFIG — from environment variables
 # ============================================
-_dll = os.path.join(os.path.dirname(sys.executable), 'Library', 'bin')
-if hasattr(os, 'add_dll_directory') and os.path.exists(_dll):
-    os.add_dll_directory(_dll)
-os.environ['PATH'] = _dll + ';' + os.environ.get('PATH', '')
-os.environ['GDAL_DATA'] = os.path.join(os.path.dirname(sys.executable), 'Library', 'share', 'gdal')
-os.environ['PROJ_LIB']  = os.path.join(os.path.dirname(sys.executable), 'Library', 'share', 'proj')
+cfg = get_metashape_config()
+MetashapeProject_path = cfg["project_path"]
+Chunk_number = cfg["chunk_number"]
+PhotoPath = cfg["photo_path"]
+hexagrid_csv = cfg["hexagrid_csv"]
+OutputPath = cfg["output_path"]
 
-for p in [
-    r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\torch\lib",
-    r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\torch\bin",
-    r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Library\bin",
-]:
-    if os.path.exists(p):
-        os.add_dll_directory(p)
-
-# ============================================
-# CONFIG — modifier ici selon le site
-# ============================================
-MetashapeProject_path = r"\\CREO34-NAS\creo\241275_ENVIR_EXXONMOBIL_MOZAMBIQUE\DATA\PSM\PROCESS\Test_for_RapidBenthos\R1_0326.psx"
-Chunk_number          = 0
-PhotoPath             = r"\\CREO34-NAS\creo\241275_ENVIR_EXXONMOBIL_MOZAMBIQUE\DATA\PSM\PROCESS\Data\R1"
-
-# CSV hexagrid déjà produit par les étapes 1-6
-hexagrid_csv = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\recap desktop\RapidBenthos_Data\outputs\R1_Reoriented\R1_EPSG32737_reoriented_1mm\R1_1mm2026-06-22_hex_pts.csv"
-
-# Dossier de sortie — le {} sera remplacé par le timestamp
-out_folder   = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\recap desktop\RapidBenthos_Data\outputs\R1_Reoriented\R1_EPSG32737_reoriented_1mm"
-OutputPath   = os.path.join(out_folder, "R1_reoriented1mm.csv")
-
-
-# ============================================
-# IMPORT fonction depuis RB_fcn_part1
-# ============================================
-sys.path.append(r"C:\Users\Public\Desktop\RapidBenthos")
+# Add scripts path for imports
+sys.path.append(str(cfg["scripts_path"]))
 from RB_fcn_part1 import camera_point_from_segment_centerPoint
 
 # ============================================
@@ -47,11 +34,7 @@ print("ÉTAPE 7 — Liaison Metashape")
 print("=" * 50)
 
 camera_uv = camera_point_from_segment_centerPoint(
-    MetashapeProject_path,
-    Chunk_number,
-    PhotoPath,
-    OutputPath,
-    hexagrid_csv
+    MetashapeProject_path, Chunk_number, PhotoPath, OutputPath, hexagrid_csv
 )
 
 print("\n✅ Terminé")

@@ -1,45 +1,23 @@
 import os
 import sys
 
-_dll = os.path.join(os.path.dirname(sys.executable), "Library", "bin")
-if hasattr(os, "add_dll_directory") and os.path.exists(_dll):
-    os.add_dll_directory(_dll)
-os.environ["PATH"] = _dll + ";" + os.environ.get("PATH", "")
-os.environ["GDAL_DATA"] = os.path.join(
-    os.path.dirname(sys.executable), "Library", "share", "gdal"
+sys.path.insert(0, os.path.dirname(__file__))
+from RB_paths import (
+    setup_dll_directories,
+    get_venv_prefix,
+    get_osgeo_utils_path,
+    get_sam_checkpoint,
+    get_metashape_config,
 )
-os.environ["PROJ_LIB"] = os.path.join(
-    os.path.dirname(sys.executable), "Library", "share", "proj"
-)
+
+setup_dll_directories()
+
+prefix = get_venv_prefix()
+
+os.environ["PATH"] = str(prefix / "Library" / "bin") + ";" + os.environ.get("PATH", "")
+os.environ["GDAL_DATA"] = str(prefix / "Library" / "share" / "gdal")
+os.environ["PROJ_LIB"] = str(prefix / "Library" / "share" / "proj")
 os.environ["CUDA_VISIBLE_DEVICES"] = "0"
-
-import os
-import sys
-
-_dll = os.path.join(os.path.dirname(sys.executable), "Library", "bin")
-if hasattr(os, "add_dll_directory") and os.path.exists(_dll):
-    os.add_dll_directory(_dll)
-os.environ["PATH"] = _dll + ";" + os.environ.get("PATH", "")
-os.environ["GDAL_DATA"] = os.path.join(
-    os.path.dirname(sys.executable), "Library", "share", "gdal"
-)
-os.environ["PROJ_LIB"] = os.path.join(
-    os.path.dirname(sys.executable), "Library", "share", "proj"
-)
-
-# ============================================
-# FIX DLLs
-# ============================================
-
-import os
-
-for p in [
-    r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\torch\lib",
-    r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\torch\bin",
-    r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Library\bin",
-]:
-    if os.path.exists(p):
-        os.add_dll_directory(p)
 
 # ============================================
 # IMPORTS
@@ -80,11 +58,6 @@ from samgeo import SamGeo
 import geopandas as gpd
 import pandas as pd
 
-if sys.platform == "win32":
-    osgeo4w_bin = r"C:\OSGeo4W\bin"
-    if os.path.isdir(osgeo4w_bin):
-        os.add_dll_directory(osgeo4w_bin)
-
 from osgeo import gdal
 import numpy as np
 import cv2
@@ -117,7 +90,9 @@ MetashapeProject_path = (
     r"\\Creo34-nas\creo\CTI_Detourgage-automatise\DATA\PROCESS\R1_reoriented_RB.psx"
 )
 Chunk_number = 0
-PhotoPath = r"C:\Users\CMBU\Desktop\RapidBenthos_Data\Data\R1"
+
+metashape_cfg = get_metashape_config()
+PhotoPath = metashape_cfg["photo_path"]
 
 os.makedirs(out_folder, exist_ok=True)
 print("=" * 50)
@@ -142,7 +117,7 @@ print("\n ÉTAPE 1/6 — SAM passe fine (128x128)...")
 
 sam = SamGeo(
     model_type="vit_l",
-    checkpoint=r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_l_0b3195.pth",
+    checkpoint=str(get_sam_checkpoint("vit_l")),
     device="cuda:0",
     sam_kwargs={
         "points_per_side": 64,
@@ -177,7 +152,7 @@ print("\n ÉTAPE 2/6 — SAM passe large (200x200)...")
 
 sam = SamGeo(
     model_type="vit_l",
-    checkpoint=r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_l_0b3195.pth",
+    checkpoint=str(get_sam_checkpoint("vit_l")),
     device="cuda:0",
     sam_kwargs={
         "points_per_side": 32,
@@ -210,12 +185,14 @@ print("✅ Passe large terminée →", mask_2)
 # ============================================
 print("\n ÉTAPE 3/6 — Fusion des deux masques...")
 
-dir_path = r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\osgeo_utils"
+osgeo_utils = get_osgeo_utils_path()
+if osgeo_utils is None:
+    raise FileNotFoundError("osgeo_utils not found. Install gdal-bin.")
 Combined_seg_tif = os.path.join(out_folder, f"{plot_id}{ts}_combined.tif")
 
 import subprocess
 
-gdal_calc = os.path.join(dir_path, "gdal_calc.py")
+gdal_calc = os.path.join(osgeo_utils, "gdal_calc.py")
 
 subprocess.run(
     [

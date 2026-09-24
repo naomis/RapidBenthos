@@ -10,24 +10,16 @@ import logging
 
 logging.getLogger("samgeo").setLevel(logging.ERROR)
 
-# for p in [
-#    r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\torch\lib",
-#    r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\torch\bin",
-#    r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Library\bin",
-# ]:
-#    if os.path.exists(p): os.add_dll_directory(p)
+sys.path.insert(0, os.path.dirname(__file__))
+from RB_paths import setup_dll_directories, get_sam_checkpoint, get_osgeo_utils_path
+
+setup_dll_directories()
+
+from datetime import datetime
 
 import geopandas as gpd
 import pandas as pd
 import torch
-
-if sys.platform == "win32":
-    osgeo4w_bin = r"C:\OSGeo4W\bin"
-    if os.path.isdir(osgeo4w_bin):
-        os.add_dll_directory(osgeo4w_bin)
-
-from datetime import datetime
-
 from osgeo import gdal
 from PIL import Image, ImageFile
 from RB_fcn_part1 import Filter_segments, hexagrid
@@ -166,7 +158,7 @@ for num in tuiles_recif:
         print("  -> SAM passe fine (128x128)...")
         sam = SamGeo(
             model_type="vit_h",
-            checkpoint=r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_h_4b8939.pth",
+            checkpoint=str(get_sam_checkpoint("vit_h")),
             device="cuda:0",
             sam_kwargs={
                 "points_per_side": 128,
@@ -196,7 +188,7 @@ for num in tuiles_recif:
         print("  -> SAM passe large (200x200)...")
         sam = SamGeo(
             model_type="vit_h",
-            checkpoint=r"C:\Users\CMBU\.cache\torch\hub\checkpoints\sam_vit_h_4b8939.pth",
+            checkpoint=str(get_sam_checkpoint("vit_h")),
             device="cuda:0",
             sam_kwargs={
                 "points_per_side": 200,
@@ -224,10 +216,12 @@ for num in tuiles_recif:
         print("  -> SAM passe large OK")
 
         print("  -> Fusion des masques...")
-        dir_path = r"C:\Users\CMBU\AppData\Local\miniconda3\envs\RapidBenthos\Lib\site-packages\osgeo_utils"
+        osgeo_utils = get_osgeo_utils_path()
+        if osgeo_utils is None:
+            raise FileNotFoundError("osgeo_utils not found. Install gdal-bin.")
         combined = os.path.join(out_folder, f"{plot_id}{ts}_combined.tif")
         os.system(
-            f'python {os.path.join(dir_path, "gdal_calc.py")} -A {mask_1} -B {mask_2} --outfile={combined} --calc="A*B" --type=Float32 --hideNoData'
+            f'python {os.path.join(osgeo_utils, "gdal_calc.py")} -A {mask_1} -B {mask_2} --outfile={combined} --calc="A*B" --type=Float32 --hideNoData'
         )
         print("  -> Fusion OK")
 

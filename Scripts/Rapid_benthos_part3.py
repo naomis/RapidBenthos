@@ -1,4 +1,9 @@
+import os
+import sys
 import matplotlib.pyplot as plt
+
+sys.path.insert(0, os.path.dirname(__file__))
+from RB_paths import get_part3_inputs
 from RB_fcn_part3 import (
     ColonyLevel_Segments,
     Select_class_ReefCloud_pts,
@@ -7,31 +12,18 @@ from RB_fcn_part3 import (
     stack_catplot,
 )
 
-RB_centroid_csv = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\recap desktop\RapidBenthos_Data\outputs\M7_Reoriented\M7_EPSG32737_reoriented_5mm\M7_reoriented5mm.csv"
+paths = get_part3_inputs()
 
+RB_centroid_csv = paths["rb_centroid_csv"]
+RC_csv = paths["rc_csv"]
+label_file = paths["label_file"]
+polygon_file = paths["polygon_file"]
+label_polygon_seg = paths["label_polygon_seg"]
+label_poygon_csv = paths["label_polygon_csv"]
+PercentCover = paths["percent_cover"]
+out_fig = paths["out_fig"]
+ColonyLevelSegments_shp = paths["colony_segments_shp"]
 
-# ============================================================
-# INPUTS
-# ============================================================
-RB_centroid_csv = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\recap desktop\RapidBenthos_Data\outputs\M7_Reoriented\M7_EPSG32737_reoriented_5mm\M7_reoriented5mm.csv"
-
-RC_csv = r"C:\Users\CMBU\Desktop\dense_inference\results\SAM_points\M7_reoriented5mm\M7_reoriented5mm_2026-06-29_14-33-10.csv"
-
-label_file = r"C:\Users\CMBU\Desktop\RapidBenthos\label_set_M7_compatible.csv"
-
-polygon_file = r"\\Creo34-nas\creo\CTI_Detourgage-automatise\recap desktop\RapidBenthos_Data\outputs\M7_Reoriented\M7_EPSG32737_reoriented_5mm\M7Reoriented2026-06-12_hex_seg.shp"
-
-label_polygon_seg = (
-    r"C:\Users\CMBU\Desktop\RapidBenthos\M7 reo\M75mm_labeled_segments.shp"
-)
-label_poygon_csv = (
-    r"C:\Users\CMBU\Desktop\RapidBenthos\M7 reo\M75mm_labeled_segments.csv"
-)
-PercentCover = r"C:\Users\CMBU\Desktop\RapidBenthos\M7 reo\M75mm_percent_cover.csv"
-out_fig = r"C:\Users\CMBU\Desktop\RapidBenthos\M7 reo\M75mm_community_composition.png"
-ColonyLevelSegments_shp = (
-    r"C:\Users\CMBU\Desktop\RapidBenthos\M7 reo\M75mm_colony_segments.shp"
-)
 # ============================================================
 # OBLIGATOIRE SUR WINDOWS pour multiprocessing
 # ============================================================
